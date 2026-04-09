@@ -38,44 +38,55 @@ if st.button("Run Analysis"):
         col1.metric("Testcases", len(result["testcases"]))
         col2.metric("PII Masked", pii["count"])
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔐 PII",
     "📊 Impact Analysis",
     "🧪 Testcases",
     "🧐 Critic"
-    ])
+])
 
-        with tab1:
-            if pii["count"] > 0:
-                st.success("Sensitive data masked")
-            else:
-                st.info("No PII found")
+# ---------------------------
+# TAB 1 - PII
+# ---------------------------
+with tab1:
+    if pii["count"] > 0:
+        st.success("Sensitive data masked")
+    else:
+        st.info("No PII found")
 
-        with tab2:
-            st.json(result["impact"])
+# ---------------------------
+# TAB 2 - IMPACT
+# ---------------------------
+with tab2:
+    st.json(output.get("impact", {}))
 
-        with tab3:
-            data = []
-            for tc in result["testcases"]:
-                data.append({
-                    "ID": tc["id"],
-                    "Title": tc["title"],
-                    "Steps": "\n".join([f"{i+1}. {step}" for i, step in enumerate(tc["steps"])]),
-                    "Expected": "\n".join([f"{i+1}. {exp}" for i, exp in enumerate(tc["expected"])])
-                })
+# ---------------------------
+# TAB 3 - TESTCASES
+# ---------------------------
+with tab3:
+    data = []
+    for tc in result["testcases"]:
+        data.append({
+            "ID": tc["id"],
+            "Title": tc["title"],
+            "Steps": "\n".join([f"{i+1}. {step}" for i, step in enumerate(tc["steps"])]),
+            "Expected": "\n".join([f"{i+1}. {exp}" for i, exp in enumerate(tc["expected"])])
+        })
 
-            df = pd.DataFrame(data)
-            st.dataframe(df)
+    df = pd.DataFrame(data)
+    st.dataframe(df, use_container_width=True)
 
-            st.download_button(
-                "Download CSV",
-                df.to_csv(index=False),
-                "testcases.csv"
-            )
+    st.download_button(
+        "Download CSV",
+        df.to_csv(index=False),
+        "testcases.csv"
+    )
 
-        with tab4:
-            st.json(result["critic"])
-            st.markdown("### AI Understanding")
+# ---------------------------
+# TAB 4 - CRITIC
+# ---------------------------
+with tab4:
+    st.json(result["critic"])
 
 output = run(final_input)
 
