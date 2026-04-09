@@ -1,66 +1,97 @@
-<<<<<<< HEAD
-from dotenv import load_dotenv
-load_dotenv()
+# main.py
 
-from crewai import Crew
-from tasks import create_tasks
-
-
-def run(user_input):  # 👈 accept input as parameter
-
-    tasks = create_tasks(user_input)
-
-    crew = Crew(
-        agents=[task.agent for task in tasks],
-        tasks=tasks,
-        verbose=True
-    )
-
-    result = crew.kickoff()
-
-    return result  # 👈 return instead of print
-
-
-if __name__ == "__main__":
-    user_input = input("Enter URL or screen description: ")
-    output = run(user_input)
-
-    print("\n========== FINAL OUTPUT ==========\n")
-    print(output)
-=======
-from dotenv import load_dotenv
+import os
 import json
+from dotenv import load_dotenv
+from openai import OpenAI
+from agents import UI_AGENT_PROMPT, TESTCASE_AGENT_PROMPT, CRITIC_AGENT_PROMPT
+from pii_processor import process_pii
 
-from crewai import Crew
-from scraper import extract_fields_from_url
-from tasks import create_tasks
-from agents import screen_analyzer, pii_detector, test_case_generator, report_generator
-
-# Load environment variables
 load_dotenv()
 
-# Input URL
-url = input("Enter URL: ")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Extract fields
-fields = extract_fields_from_url(url)
+MODEL = "gpt-4o-mini"
 
-# Convert to JSON string (IMPORTANT)
-screen_data = json.dumps(fields, indent=2)
 
-# Create tasks
-tasks = create_tasks(screen_data)
+# ---------------------------
+# Helper
+# ---------------------------
+def call_llm(prompt):
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+        temperature=0.2
+    )
+    return response.choices[0].message.content
 
-# Create Crew
-crew = Crew(
-    agents=[screen_analyzer, pii_detector, test_case_generator, report_generator],
-    tasks=tasks,
-    verbose=True
-)
 
-# Run
-result = crew.kickoff()
+def extract_json(text):
+    try:
+        return json.loads(text)
+    except:
+        try:
+            start = text.index("{")
+            end = text.rindex("}") + 1
+            return json.loads(text[start:end])
+        except:
+            return {}
 
-print("\n\n===== FINAL OUTPUT =====\n")
-print(result)
->>>>>>> 6d8a0dc814e2c01133b4c3bd0c921f1b960dd5cc
+
+# ---------------------------
+# MAIN
+# ---------------------------
+def run(user_input):
+
+    # 🔐 PII
+    pii = process_pii(user_input)
+    sanitized = pii["sanitized"]
+
+    # ---------------------------
+    # UI ANALYSIS
+    # ---------------------------
+    ui_prompt = f"""
+{UI_AGENT_PROMPT}
+
+Input:
+{sanitized}
+"""
+    ui_raw = call_llm(ui_prompt)
+    ui_data = extract_json(ui_raw)
+    ui_analysis = ui_data.get("ui_analysis", "")
+
+    # ---------------------------
+    # TESTCASES
+    # ---------------------------
+    tc_prompt = f"""
+{TESTCASE_AGENT_PROMPT}
+
+Input:
+{ui_analysis}
+"""
+    tc_raw = call_llm(tc_prompt)
+    tc_data = extract_json(tc_raw)
+    testcases = tc_data.get("testcases", [])
+
+    # ---------------------------
+    # CRITIC
+    # ---------------------------
+    critic_prompt = f"""
+{CRITIC_AGENT_PROMPT}
+
+Testcases:
+{testcases}
+"""
+    critic_raw = call_llm(critic_prompt)
+    critic_data = extract_json(critic_raw)
+
+    # ---------------------------
+    return {
+        "pii_report": pii,
+        "result": {
+            "testcases": testcases,
+            "critic": critic_data
+        }
+    }
