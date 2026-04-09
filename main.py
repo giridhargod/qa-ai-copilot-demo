@@ -4,7 +4,12 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
-from agents import UI_AGENT_PROMPT, TESTCASE_AGENT_PROMPT, CRITIC_AGENT_PROMPT, IMPACT_AGENT_PROMPT
+from agents import (
+    UI_AGENT_PROMPT,
+    TESTCASE_AGENT_PROMPT,
+    CRITIC_AGENT_PROMPT,
+    IMPACT_AGENT_PROMPT
+)
 from pii_processor import process_pii
 
 load_dotenv()
@@ -45,12 +50,12 @@ def extract_json(text):
 # ---------------------------
 def run(user_input):
 
-    # 🔐 PII
+    # 🔐 PII Processing
     pii = process_pii(user_input)
     sanitized = pii["sanitized"]
 
     # ---------------------------
-    # UI ANALYSIS
+    # 🧠 UI ANALYSIS
     # ---------------------------
     ui_prompt = f"""
 {UI_AGENT_PROMPT}
@@ -62,21 +67,20 @@ Input:
     ui_data = extract_json(ui_raw)
     ui_analysis = ui_data.get("ui_analysis", "")
 
-# ---------------------------
-# IMPACT ANALYSIS
-# ---------------------------
-impact_prompt = f"""
+    # ---------------------------
+    # 📊 IMPACT ANALYSIS
+    # ---------------------------
+    impact_prompt = f"""
 {IMPACT_AGENT_PROMPT}
 
 Input:
 {sanitized}
 """
-
-impact_raw = call_llm(impact_prompt)
-impact_data = extract_json(impact_raw)
+    impact_raw = call_llm(impact_prompt)
+    impact_data = extract_json(impact_raw)
 
     # ---------------------------
-    # TESTCASES
+    # 🧪 TESTCASE GENERATION
     # ---------------------------
     tc_prompt = f"""
 {TESTCASE_AGENT_PROMPT}
@@ -89,7 +93,7 @@ Input:
     testcases = tc_data.get("testcases", [])
 
     # ---------------------------
-    # CRITIC
+    # 🧐 CRITIC REVIEW
     # ---------------------------
     critic_prompt = f"""
 {CRITIC_AGENT_PROMPT}
@@ -101,10 +105,12 @@ Testcases:
     critic_data = extract_json(critic_raw)
 
     # ---------------------------
+    # ✅ FINAL OUTPUT
+    # ---------------------------
     return {
         "pii_report": pii,
+        "impact": impact_data,   # ✅ separate (important)
         "result": {
-            "impact": impact_data,
             "testcases": testcases,
             "critic": critic_data
         }
