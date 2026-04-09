@@ -4,16 +4,17 @@ from main import run
 
 st.set_page_config(page_title="QA AI Copilot", layout="wide")
 
-st.title("🧠 QA + Dev AI Copilot")
+st.title("QA AI Copilot")
 
-user_input = st.text_area("Enter Requirement / Ticket")
+user_input = st.text_area("💬 Ask your QA Copilot (Paste ticket / requirement / scenario)")
 
-if st.button("🚀 Run Analysis"):
+if st.button("Run Analysis"):
 
     if not user_input:
         st.warning("Enter input first")
     else:
         with st.spinner("Processing..."):
+            st.markdown("### 🤖 Copilot Response")
             output = run(user_input)
 
         result = output["result"]
@@ -41,8 +42,8 @@ if st.button("🚀 Run Analysis"):
                 data.append({
                     "ID": tc["id"],
                     "Title": tc["title"],
-                    "Steps": "\n".join(tc["steps"]),
-                    "Expected": "\n".join(tc["expected"])
+                    "Steps": "\n".join([f"{i+1}. {step}" for i, step in enumerate(tc["steps"])]),
+                    "Expected": "\n".join([f"{i+1}. {exp}" for i, exp in enumerate(tc["expected"])])
                 })
 
             df = pd.DataFrame(data)
@@ -56,3 +57,9 @@ if st.button("🚀 Run Analysis"):
 
         with tab3:
             st.json(result["critic"])
+            st.markdown("### AI Understanding")
+
+st.info(
+    "The Copilot understands your requirement, generates testcases, "
+    "and reviews coverage like a QA lead."
+)

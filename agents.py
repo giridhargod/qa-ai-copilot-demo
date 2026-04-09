@@ -38,7 +38,7 @@ Return STRICT JSON:
 }
 
 RULES:
-- Minimum 5 testcases
+- Minimum 10 testcases
 - Steps and expected must align
 - Cover positive, negative, edge cases
 - IDs must start from 1
@@ -46,21 +46,23 @@ RULES:
 """
 
 CRITIC_AGENT_PROMPT = """
-You are a QA Review Expert.
+You are a Senior QA Review Lead.
 
-Review testcases and improve coverage.
+Analyze testcases like a real QA reviewer.
 
 Return STRICT JSON:
 
 {
-  "critic": {
-    "coverage": "Good / Moderate / Poor",
-    "missing_areas": ["Area 1", "Area 2"],
-    "suggestions": ["Suggestion 1", "Suggestion 2"]
-  }
+  "summary": "Overall quality summary",
+  "coverage_score": "0-100",
+  "risk_areas": ["High risk area 1"],
+  "missing_scenarios": ["Scenario 1"],
+  "improvements": ["Improvement 1"],
+  "production_risks": ["Risk if not tested"]
 }
 
 RULES:
-- Be concise
+- Think like production QA
+- Be sharp and practical
 - No markdown
 """
