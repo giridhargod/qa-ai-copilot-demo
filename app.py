@@ -1,12 +1,26 @@
 import streamlit as st
 import pandas as pd
 from main import run
+from file_processor import process_file
+
+uploaded_file = st.file_uploader(
+    "Upload screenshot / PDF / DOCX",
+    type=["png", "jpg", "jpeg", "pdf", "docx"]
+)
 
 st.set_page_config(page_title="QA AI Copilot", layout="wide")
 
 st.title("QA AI Copilot")
 
 user_input = st.text_area("💬 Ask your QA Copilot (Paste ticket / requirement / scenario)")
+
+final_input = ""
+
+if uploaded_file:
+    file_text = process_file(uploaded_file)
+    final_input = file_text
+else:
+    final_input = user_input
 
 if st.button("Run Analysis"):
 
@@ -24,11 +38,12 @@ if st.button("Run Analysis"):
         col1.metric("Testcases", len(result["testcases"]))
         col2.metric("PII Masked", pii["count"])
 
-        tab1, tab2, tab3 = st.tabs([
-            "🔐 PII",
-            "🧪 Testcases",
-            "🧐 Critic"
-        ])
+    tab1, tab2, tab3, tab4 = st.tabs([
+    "🔐 PII",
+    "📊 Impact Analysis",
+    "🧪 Testcases",
+    "🧐 Critic"
+    ])
 
         with tab1:
             if pii["count"] > 0:
@@ -37,6 +52,9 @@ if st.button("Run Analysis"):
                 st.info("No PII found")
 
         with tab2:
+            st.json(result["impact"])
+
+        with tab3:
             data = []
             for tc in result["testcases"]:
                 data.append({
@@ -55,11 +73,13 @@ if st.button("Run Analysis"):
                 "testcases.csv"
             )
 
-        with tab3:
+        with tab4:
             st.json(result["critic"])
             st.markdown("### AI Understanding")
 
+output = run(final_input)
+
 st.info(
-    "The Copilot understands your requirement, generates testcases, "
+    "This app understands your requirement, generates testcases, "
     "and reviews coverage like a QA lead."
 )

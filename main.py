@@ -4,7 +4,7 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
-from agents import UI_AGENT_PROMPT, TESTCASE_AGENT_PROMPT, CRITIC_AGENT_PROMPT
+from agents import UI_AGENT_PROMPT, TESTCASE_AGENT_PROMPT, CRITIC_AGENT_PROMPT, IMPACT_AGENT_PROMPT
 from pii_processor import process_pii
 
 load_dotenv()
@@ -62,6 +62,19 @@ Input:
     ui_data = extract_json(ui_raw)
     ui_analysis = ui_data.get("ui_analysis", "")
 
+# ---------------------------
+# IMPACT ANALYSIS
+# ---------------------------
+impact_prompt = f"""
+{IMPACT_AGENT_PROMPT}
+
+Input:
+{sanitized}
+"""
+
+impact_raw = call_llm(impact_prompt)
+impact_data = extract_json(impact_raw)
+
     # ---------------------------
     # TESTCASES
     # ---------------------------
@@ -91,6 +104,7 @@ Testcases:
     return {
         "pii_report": pii,
         "result": {
+            "impact": impact_data,
             "testcases": testcases,
             "critic": critic_data
         }
