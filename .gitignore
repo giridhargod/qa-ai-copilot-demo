@@ -1,5 +1,20 @@
-venv/
-__pycache__/
+# Environment
 .env
+
+# Python
+__pycache__/
 *.pyc
-copilot.db
+
+# Virtual Environment
+venv/
+.venv/
+
+# Streamlit cache
+.streamlit/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
