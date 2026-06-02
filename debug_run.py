@@ -10,4 +10,4 @@ result = workflow.run(
     """
 )
 
-print(result)
+print(result.execution_log)

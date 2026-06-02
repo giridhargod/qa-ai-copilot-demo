@@ -42,8 +42,15 @@ class WorkflowOrchestrator:
             user_input
         )
 
+        state.execution_log.append(
+            "PII Processing Completed"
+        )
+
         for agent in self.agents:
 
             state = agent.execute(state)
 
+            state.execution_log.append(
+            f"{agent.name} Completed"
+        )
         return state
