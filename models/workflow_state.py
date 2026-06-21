@@ -1,4 +1,6 @@
+# models/workflow_state.py
 from dataclasses import dataclass, field
+from models.execution_record import ExecutionRecord
 
 
 @dataclass
@@ -10,12 +12,42 @@ class WorkflowState:
 
     pii_report: dict = field(default_factory=dict)
 
-    ui_analysis: dict = field(default_factory=dict)
+    requirements: list = field(
+        default_factory=list
+    )
 
-    impact_analysis: dict = field(default_factory=dict)
+    ui_analysis: dict = field(
+        default_factory=dict
+    )
 
-    testcases: list = field(default_factory=list)
+    impact_analysis: dict = field(
+        default_factory=dict
+    )
 
-    critic_review: dict = field(default_factory=dict)
+    testcases: list = field(
+        default_factory=list
+    )
 
-    execution_log: list = field(default_factory=list)
+    critic_review: dict = field(
+        default_factory=dict
+    )
+
+    traceability_matrix: list = field(
+        default_factory=list
+    )
+
+    coverage_metrics: dict = field(
+        default_factory=dict
+    )
+
+    execution_log: list[ExecutionRecord] = field(
+        default_factory=list
+    )
+
+    workflow_metrics: dict = field(
+    default_factory=dict
+    )
+
+    evaluation_metrics: dict = field(
+    default_factory=dict
+    )

@@ -1,7 +1,6 @@
-#schemas.py
+#models/schemas.py
 from pydantic import BaseModel
 from typing import List
-
 
 class TestCase(BaseModel):
     id: int

@@ -1,39 +1,18 @@
-#screens.json
-<<<<<<< HEAD
 [
-    {
-      "screen_name": "Login Page",
-      "fields": ["username", "password"]
-    },
-    {
-      "screen_name": "User Profile Page",
-      "fields": ["name", "email", "phone", "address"]
-    },
-    {
-      "screen_name": "Payment Page",
-      "fields": ["card_number", "expiry_date", "cvv", "billing_address"]
-    },
-    {
-      "screen_name": "Support Form",
-      "fields": ["name", "email", "message"]
-    }
-=======
-[
-    {
-      "screen_name": "Login Page",
-      "fields": ["username", "password"]
-    },
-    {
-      "screen_name": "User Profile Page",
-      "fields": ["name", "email", "phone", "address"]
-    },
-    {
-      "screen_name": "Payment Page",
-      "fields": ["card_number", "expiry_date", "cvv", "billing_address"]
-    },
-    {
-      "screen_name": "Support Form",
-      "fields": ["name", "email", "message"]
-    }
->>>>>>> 6d8a0dc814e2c01133b4c3bd0c921f1b960dd5cc
-  ]
+  {
+    "screen_name": "Login Page",
+    "fields": ["username", "password"]
+  },
+  {
+    "screen_name": "User Profile Page",
+    "fields": ["name", "email", "phone", "address"]
+  },
+  {
+    "screen_name": "Payment Page",
+    "fields": ["card_number", "expiry_date", "cvv", "billing_address"]
+  },
+  {
+    "screen_name": "Support Form",
+    "fields": ["name", "email", "message"]
+  }
+]

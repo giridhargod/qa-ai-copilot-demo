@@ -1,3 +1,5 @@
+#workflows/workflow.py
+from datetime import datetime
 from agents import (
     UIAnalysisAgent,
     ImpactAnalysisAgent,
@@ -7,9 +9,9 @@ from agents import (
 
 from models import WorkflowState
 from services import OpenAIService
-
 from services.pii_service import process_pii
-
+from models import ExecutionRecord
+from services import TimeService
 
 class WorkflowOrchestrator:
 
@@ -31,6 +33,8 @@ class WorkflowOrchestrator:
 
         state = WorkflowState()
 
+        workflow_start = datetime.now()
+
         state.raw_input = user_input
 
         pii_result = process_pii(user_input)
@@ -43,7 +47,21 @@ class WorkflowOrchestrator:
         )
 
         state.execution_log.append(
-            "PII Processing Completed"
+            ExecutionRecord(
+                agent_name="PII Processor",
+                status="SUCCESS",
+                executed_at=TimeService.get_current_ist()
+            )
+        )
+
+        from services.requirement_service import (
+            RequirementService
+        )
+
+        state.requirements = (
+            RequirementService.extract_requirements(
+                state.sanitized_input
+            )
         )
 
         for agent in self.agents:
@@ -51,6 +69,58 @@ class WorkflowOrchestrator:
             state = agent.execute(state)
 
             state.execution_log.append(
-            f"{agent.name} Completed"
+                ExecutionRecord(
+                    agent_name=agent.name,
+                    status="SUCCESS",
+                    executed_at=TimeService.get_current_ist()
+                )
+            )
+
+        from services.traceability_service import (
+            TraceabilityService
         )
+        from services.coverage_service import (
+            CoverageService
+        )
+
+        state.traceability_matrix = (
+            TraceabilityService.build_traceability(
+                state.requirements,
+                state.testcases
+            )
+        )
+
+        state.coverage_metrics = (
+            CoverageService.calculate(
+                state.requirements,
+                state.traceability_matrix
+            )
+        )
+
+        from evaluation.testcase_quality_evaluator import (
+            TestcaseQualityEvaluator
+        )
+
+        state.evaluation_metrics = (
+            TestcaseQualityEvaluator.evaluate(
+                state.testcases
+            )
+        )
+
+        workflow_end = datetime.now()
+
+        from services.metrics_service import (
+            MetricsService
+        )
+
+        state.workflow_metrics = (
+            MetricsService.build_metrics(
+                workflow_start,
+                workflow_end,
+                state.requirements,
+                state.testcases,
+                state.execution_log
+            )
+        )
+
         return state

@@ -1,34 +1,40 @@
-#app.py
+#app/streamlit_app.py
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+sys.path.append(str(ROOT_DIR))
+
 import streamlit as st
 import pandas as pd
-from main import run
-from file_processor import process_file
 
-# ---------------------------
-# PAGE CONFIG (MUST BE FIRST)
-# ---------------------------
-st.set_page_config(page_title="QA + Dev AI Copilot", layout="wide")
+from workflows.workflow import WorkflowOrchestrator
+from services.file_service import process_file
 
-st.title("🧠 QA + Dev AI Copilot")
+st.set_page_config(
+    page_title="QA AI Copilot",
+    layout="wide"
+)
 
-# ---------------------------
-# INPUTS
-# ---------------------------
+st.title("🧠 QA AI Copilot")
+st.caption(
+    "AI-Powered Requirement Analysis, Impact Assessment, "
+    "Test Design, Traceability and QA Evaluation Platform"
+)
+
 uploaded_file = st.file_uploader(
-    "📂 Upload screenshot / PDF / DOCX",
-    type=["png", "jpg", "jpeg", "pdf", "docx"]
+    "📂 Upload PDF / DOCX / Screenshot",
+    type=["pdf", "docx", "png", "jpg", "jpeg"]
 )
 
 user_input = st.text_area(
-    "💬 Ask your QA Copilot (Paste ticket / requirement / scenario)"
+    "Requirement / User Story / Feature Description",
+    height=250
 )
 
-# ---------------------------
-# RUN BUTTON
-# ---------------------------
 if st.button("🚀 Run Analysis"):
 
-    # Decide input source
     final_input = ""
 
     if uploaded_file:
@@ -37,89 +43,229 @@ if st.button("🚀 Run Analysis"):
         final_input = user_input
 
     if not final_input:
-        st.warning("Please provide input (text or file)")
+
+        st.warning(
+            "Please provide input."
+        )
+
     else:
-        with st.spinner("Processing..."):
-            st.markdown("### 🤖 Copilot Response")
-            output = run(final_input)
 
-        result = output.get("result", {})
-        pii = output.get("pii_report", {})
-        impact = output.get("impact", {})
+        with st.spinner(
+            "Running QA AI Copilot..."
+        ):
 
-        # ---------------------------
-        # METRICS
-        # ---------------------------
-        col1, col2 = st.columns(2)
-        col1.metric("Testcases", len(result.get("testcases", [])))
-        col2.metric("PII Masked", pii.get("count", 0))
+            workflow = WorkflowOrchestrator()
 
-        # ---------------------------
-        # TABS
-        # ---------------------------
-        tab1, tab2, tab3, tab4 = st.tabs([
+            result = workflow.run(
+                final_input
+            )
+
+        st.success(
+            "Analysis Completed"
+        )
+
+        dashboard1, dashboard2, dashboard3, dashboard4 = st.columns(4)
+
+        dashboard1.metric(
+            "Requirements",
+            len(result.requirements)
+        )
+
+        dashboard2.metric(
+            "Test Cases",
+            len(result.testcases)
+        )
+
+        dashboard3.metric(
+            "Coverage %",
+            result.coverage_metrics.get(
+                "coverage_percentage",
+                0
+            )
+        )
+
+        dashboard4.metric(
+            "Quality Score",
+            result.evaluation_metrics.get(
+                "quality_score",
+                0
+            )
+        )
+
+        tabs = st.tabs([
+            "📊 Dashboard",
             "🔐 PII",
-            "📊 Impact Analysis",
-            "🧪 Testcases",
-            "🧐 Critic"
+            "📋 Requirements",
+            "📈 Impact Analysis",
+            "🧪 Test Cases",
+            "🔗 Traceability",
+            "📊 Coverage",
+            "📏 Evaluation",
+            "🧐 Critic Review",
+            "📜 Execution Log"
         ])
 
-        # ---------------------------
-        # TAB 1 - PII
-        # ---------------------------
-        with tab1:
-            if pii.get("count", 0) > 0:
-                st.success("Sensitive data masked")
+        # Dashboard
+        with tabs[0]:
+
+            st.subheader(
+                "Workflow Metrics"
+            )
+
+            st.json(
+                result.workflow_metrics
+            )
+
+        # PII
+        with tabs[1]:
+
+            st.json(
+                result.pii_report
+            )
+
+        # Requirements
+        with tabs[2]:
+
+            if result.requirements:
+
+                st.dataframe(
+                    pd.DataFrame(
+                        result.requirements
+                    ),
+                    use_container_width=True
+                )
+
             else:
-                st.info("No PII found")
 
-        # ---------------------------
-        # TAB 2 - IMPACT
-        # ---------------------------
-        with tab2:
-            st.json(impact)
+                st.info(
+                    "No requirements extracted"
+                )
 
-        # ---------------------------
-        # TAB 3 - TESTCASES
-        # ---------------------------
-        with tab3:
-            testcases = result.get("testcases", [])
+        # Impact Analysis
+        with tabs[3]:
 
-            if testcases:
-                data = []
-                for tc in testcases:
-                    data.append({
-                        "ID": tc.get("id"),
-                        "Title": tc.get("title"),
-                        "Steps": "\n".join(
-                            [f"{i+1}. {step}" for i, step in enumerate(tc.get("steps", []))]
-                        ),
-                        "Expected": "\n".join(
-                            [f"{i+1}. {exp}" for i, exp in enumerate(tc.get("expected", []))]
-                        )
-                    })
+            st.json(
+                result.impact_analysis
+            )
 
-                df = pd.DataFrame(data)
-                st.dataframe(df, use_container_width=True)
+        # Test Cases
+        with tabs[4]:
+
+            if result.testcases:
+
+                testcase_rows = []
+
+                for tc in result.testcases:
+
+                    testcase_rows.append(
+                        {
+                            "ID": tc.get("id"),
+                            "Title": tc.get("title"),
+                            "Priority": tc.get(
+                                "priority"
+                            ),
+                            "Expected Result": tc.get(
+                                "expected_result"
+                            )
+                        }
+                    )
+
+                df = pd.DataFrame(
+                    testcase_rows
+                )
+
+                st.dataframe(
+                    df,
+                    use_container_width=True
+                )
 
                 st.download_button(
                     "⬇ Download CSV",
-                    df.to_csv(index=False),
+                    df.to_csv(
+                        index=False
+                    ),
                     "testcases.csv"
                 )
+
             else:
-                st.warning("No testcases generated")
 
-        # ---------------------------
-        # TAB 4 - CRITIC
-        # ---------------------------
-        with tab4:
-            st.json(result.get("critic", {}))
+                st.warning(
+                    "No test cases generated"
+                )
 
-        # ---------------------------
-        # INFO
-        # ---------------------------
-        st.info(
-            "This Copilot understands your requirement, analyzes impact, "
-            "generates structured testcases, and reviews QA coverage."
-        )
+        # Traceability
+        with tabs[5]:
+
+            traceability_rows = []
+
+            for item in result.traceability_matrix:
+
+                traceability_rows.append(
+                    {
+                        "Requirement ID":
+                        item.requirement_id,
+
+                        "Requirement":
+                        item.requirement_text,
+
+                        "Test Cases":
+                        ", ".join(
+                            item.testcase_ids
+                        )
+                    }
+                )
+
+            st.dataframe(
+                pd.DataFrame(
+                    traceability_rows
+                ),
+                use_container_width=True
+            )
+
+        # Coverage
+        with tabs[6]:
+
+            st.json(
+                result.coverage_metrics
+            )
+
+        # Evaluation
+        with tabs[7]:
+
+            st.json(
+                result.evaluation_metrics
+            )
+
+        # Critic
+        with tabs[8]:
+
+            st.json(
+                result.critic_review
+            )
+
+        # Execution Log
+        with tabs[9]:
+
+            execution_rows = []
+
+            for item in result.execution_log:
+
+                execution_rows.append(
+                    {
+                        "Agent":
+                        item.agent_name,
+
+                        "Status":
+                        item.status,
+
+                        "Executed At":
+                        item.executed_at
+                    }
+                )
+
+            st.dataframe(
+                pd.DataFrame(
+                    execution_rows
+                ),
+                use_container_width=True
+            )

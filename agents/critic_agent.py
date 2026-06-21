@@ -1,3 +1,4 @@
+#agents/critic_agent.py
 from agents.base_agent import BaseAgent
 from agents.prompts import CRITIC_AGENT_PROMPT
 from models.workflow_state import WorkflowState

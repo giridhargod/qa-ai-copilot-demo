@@ -1,3 +1,4 @@
+#agents/prompts/critic_prompt.py
 CRITIC_AGENT_PROMPT = """
 ROLE:
 You are a Principal QA Architect performing quality review.

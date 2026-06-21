@@ -1,5 +1,8 @@
 QA AI Copilot
 Overview
+//README.md
+# 🧠 QA + Dev AI Copilot
+2f72a94 (Phase 3 complete - traceability, evaluation, metrics and enterprise dashboard)
 
 QA AI Copilot is an AI-powered Quality Engineering assistant that transforms requirements, user stories, screenshots, PDFs, and application documentation into structured QA artifacts.
 

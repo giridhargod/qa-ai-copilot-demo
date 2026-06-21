@@ -1,5 +1,4 @@
-# file_service.py
-
+#services/file_service.py
 import pdfplumber
 from PIL import Image
 import pytesseract

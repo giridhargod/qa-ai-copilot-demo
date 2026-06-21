@@ -1,4 +1,4 @@
-#database.py
+#storage/sqlite_store.py
 import sqlite3
 import json
 from datetime import datetime

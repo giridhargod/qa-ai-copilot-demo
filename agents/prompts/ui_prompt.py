@@ -1,3 +1,4 @@
+#agents/prompts/ui_prompt.py
 UI_AGENT_PROMPT = """
 ROLE:
 You are a Senior QA Analyst specializing in UI and Functional Analysis.
