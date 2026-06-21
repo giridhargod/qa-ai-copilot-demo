@@ -1,178 +1,178 @@
-# QA AI Copilot
+QA AI Copilot
+Overview
 
-QA AI Copilot is an AI-powered software testing assistant built to help testers and developers analyze requirements, understand impacts, generate test cases, and improve test coverage using AI.
+QA AI Copilot is an AI-powered Quality Engineering assistant that transforms requirements, user stories, screenshots, PDFs, and application documentation into structured QA artifacts.
 
-The project started as a learning exercise to explore Python, Generative AI, and agent-based workflows. Over time, it has evolved into a structured AI QA platform focused on real-world software testing use cases and enterprise-style architecture.
+The platform helps QA engineers perform:
 
-## Why I Built This
+Requirement Analysis
+Impact Analysis
+Test Design
+Traceability Mapping
+Coverage Analysis
+Quality Evaluation
 
-As a QA Engineer, I wanted to go beyond traditional automation and learn how AI can assist throughout the software testing lifecycle.
+using a multi-agent workflow architecture.
 
-Instead of building small isolated demos, I chose to build a complete project that would help me learn:
+Why This Project Exists
 
-* Python development
-* AI application architecture
-* Agent orchestration
-* Workflow design
-* Prompt engineering
-* Software testing with AI
-* Production-oriented project structure
+This project started as a personal learning initiative to better understand:
 
-The goal is to create a practical AI QA Copilot that demonstrates how AI can support requirement analysis, impact analysis, and test design activities.
+Large Language Models
+Agent Architectures
+AI-assisted Quality Engineering
+Workflow Orchestration
+Enterprise AI Design Patterns
 
-## Current Capabilities
+While exploring these concepts, the project gradually evolved from a simple testcase generator into a reusable QA-focused AI artifact.
 
-The platform currently supports:
+Today it demonstrates how AI agents can assist quality engineering activities throughout the testing lifecycle.
 
-* Requirement and user story analysis
-* UI analysis from requirements
-* Impact analysis
-* Structured test case generation
-* Test coverage review through a Critic Agent
-* PDF document processing
-* DOCX document processing
-* OCR-based screenshot text extraction
-* PII masking before AI processing
-* Agent-based workflow execution
-* Workflow state management
-* Execution traceability logging
+Business Problem
 
-## Current Architecture
+Quality Engineers spend significant effort on:
 
-User Input
-(Text / PDF / DOCX / Screenshot)
+Requirement analysis
+Impact assessment
+Test design
+Coverage validation
+Traceability preparation
 
-↓
+These activities are often manual, repetitive, and difficult to scale.
 
-Streamlit User Interface
+QA AI Copilot accelerates these activities by providing AI-assisted analysis and artifact generation.
 
-↓
+Current Capabilities
+Requirement Analysis Agent
 
-File Processing Layer
+Extracts:
 
-↓
-
-PII Processing Layer
-
-↓
-
-Workflow Orchestrator
-
-↓
-
-UI Analysis Agent
-
-↓
-
+Screens
+Components
+Actions
+Validations
+Business Rules
+Edge Cases
 Impact Analysis Agent
 
-↓
+Identifies:
 
-Test Case Generation Agent
+Functional Impact
+UI Impact
+API Impact
+Database Impact
+Security Impact
+Integration Impact
+Regression Areas
+Test Design Agent
 
-↓
+Generates:
 
+Positive Scenarios
+Negative Scenarios
+Boundary Tests
+Validation Tests
+Security Tests
+Accessibility Tests
+Regression Scenarios
 Critic Agent
 
-↓
+Reviews generated artifacts and provides:
 
-Structured Results
+Coverage Assessment
+Quality Feedback
+Missing Scenarios
+Improvement Recommendations
+Traceability Layer
 
-## Project Structure
+Creates mappings between:
 
-qa-ai-copilot/
+Requirements
+Generated Test Cases
 
-agents/
+and enables coverage analysis.
 
-* UI Analysis Agent
-* Impact Analysis Agent
-* Test Case Generation Agent
-* Critic Agent
+Evaluation Framework
 
-services/
+Measures generated output quality using:
 
-* OpenAI Service
-* File Processing Service
-* PII Processing Service
+Testcase Completeness
+Missing Fields
+Structural Validation
+Quality Scoring
+Execution Tracking
 
-workflows/
+Captures workflow execution history including:
 
-* Workflow Orchestrator
+Agent Executed
+Execution Status
+Timestamp
 
-models/
+for improved observability.
 
-* Workflow State
-* Execution Records
+Architecture
+User Input
+     │
+     ▼
+PII Processor
+     │
+     ▼
+UI Analysis Agent
+     │
+     ▼
+Impact Analysis Agent
+     │
+     ▼
+Testcase Generation Agent
+     │
+     ▼
+Critic Agent
+     │
+     ▼
+Traceability Engine
+     │
+     ▼
+Coverage Engine
+     │
+     ▼
+Evaluation Engine
+Technology Stack
+Python
+Streamlit
+OpenAI
+OCR (Tesseract)
+PDF Processing
+DOCX Processing
+Dataclasses
+Pydantic
+Current Status
 
-app/
+Current maturity level:
 
-* Streamlit Application
+Enterprise QA AI Copilot (Prototype / Innovation Artifact)
 
-storage/
+The project is intended for:
 
-* Persistence Layer
+AI Engineering Learning
+QA Innovation Demonstrations
+Internal Hackathons
+AI Artifact Showcases
+Quality Engineering Experimentation
+Future Roadmap
+Intelligent Traceability Mapping
+RAG Integration
+Knowledge Base Search
+Multi-Modal Analysis
+Automated Validation Framework
+MCP Integration
+CLI Interface
+REST API Layer
+Agent Evaluation Benchmarks
+Author
 
-config/
+Developed as part of a continuous learning journey focused on:
 
-* Application Configuration
-
-tests/
-
-* Validation and Testing Utilities
-
-## Technology Stack
-
-* Python
-* Streamlit
-* OpenAI API
-* PDFPlumber
-* Python-Docx
-* Tesseract OCR
-* SQLite
-* Git & GitHub
-
-## Current Focus
-
-The current focus is improving the platform architecture and preparing it for enterprise-style AI workflows.
-
-Active areas of development include:
-
-* Workflow traceability
-* Evaluation framework
-* Automated quality validation
-* Agent orchestration improvements
-* Maintainable software architecture
-
-## Roadmap
-
-Near-Term Goals
-
-* Structured execution records
-* Workflow metrics
-* Evaluation framework
-* Automated tests
-* Traceability enhancements
-
-Long-Term Vision
-
-Build an AI-powered QA Copilot that helps teams:
-
-* Understand requirements faster
-* Analyze change impacts
-* Improve test coverage
-* Reduce manual effort
-* Support testers and developers throughout the software development lifecycle
-
-## Learning Journey
-
-This project is also a hands-on learning journey into AI Engineering.
-
-Every feature, refactor, bug fix, and architecture decision is helping me deepen my understanding of:
-
-* Software Engineering
-* Python Development
-* AI Systems
-* Agentic Workflows
-* Testing with AI
-
-The platform continues to evolve as I learn and build.
+AI Engineering
+Agentic Systems
+Enterprise Quality Engineering
+Workflow Automation
