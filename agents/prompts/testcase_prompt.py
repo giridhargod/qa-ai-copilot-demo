@@ -34,7 +34,9 @@ Return ONLY valid JSON.
 }
 
 RULES:
-- Generate realistic enterprise test cases.
+- Assign priority as High, Medium, or Low.
+- Ensure each testcase maps to at least one requirement.
+- Include realistic enterprise QA scenarios, edge cases, failure modes, error handling, validation scenarios and Generate realistic enterprise test cases.
 - Avoid duplicate test cases.
 - Ensure traceability to requirements.
 - Return valid JSON only.

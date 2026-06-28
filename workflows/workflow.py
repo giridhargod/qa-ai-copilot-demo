@@ -1,4 +1,7 @@
 #workflows/workflow.py
+from agents.requirement_readiness_agent import (
+    RequirementReadinessAgent
+)
 from datetime import datetime
 from agents import (
     UIAnalysisAgent,
@@ -19,11 +22,29 @@ class WorkflowOrchestrator:
 
         llm_service = OpenAIService()
 
+        self.requirement_readiness_agent = (
+            RequirementReadinessAgent()
+        )
+
         self.agents = [
-            UIAnalysisAgent(llm_service),
-            ImpactAnalysisAgent(llm_service),
-            TestcaseGenerationAgent(llm_service),
-            CriticAgent(llm_service)
+
+            self.requirement_readiness_agent,
+
+            UIAnalysisAgent(
+                llm_service
+            ),
+
+            ImpactAnalysisAgent(
+                llm_service
+            ),
+
+            TestcaseGenerationAgent(
+                llm_service
+            ),
+
+            CriticAgent(
+                llm_service
+            )
         ]
 
     def run(
@@ -51,16 +72,6 @@ class WorkflowOrchestrator:
                 agent_name="PII Processor",
                 status="SUCCESS",
                 executed_at=TimeService.get_current_ist()
-            )
-        )
-
-        from services.requirement_service import (
-            RequirementService
-        )
-
-        state.requirements = (
-            RequirementService.extract_requirements(
-                state.sanitized_input
             )
         )
 

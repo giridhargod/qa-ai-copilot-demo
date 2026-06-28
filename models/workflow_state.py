@@ -12,8 +12,14 @@ class WorkflowState:
 
     pii_report: dict = field(default_factory=dict)
 
-    requirements: list = field(
-        default_factory=list
+    requirements: list = field(default_factory=list)
+
+    requirement_quality: dict = field(
+        default_factory=dict
+    )
+
+    requirement_review: dict = field(
+        default_factory=dict
     )
 
     ui_analysis: dict = field(
