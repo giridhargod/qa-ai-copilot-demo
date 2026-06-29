@@ -1,10 +1,7 @@
-from requirement_engine.extractor import RequirementExtractor
-from requirement_engine.classifier import RequirementClassifier
-from requirement_engine.validator import RequirementValidator
-from requirement_engine.quality import RequirementQualityScorer
-from requirement_engine.reviewer import RequirementReviewer
+#test_requirement_engine.py
+from services.readiness_service import ReadinessService
 
-text = """
+sample_requirement = """
 Administrator shall login.
 
 Password is mandatory.
@@ -16,50 +13,40 @@ Response shall be within 3 seconds.
 Application shall support keyboard navigation.
 """
 
-# -----------------------------
-# Step 1 - Extract
-# -----------------------------
-requirements = RequirementExtractor.extract(text)
-
-# -----------------------------
-# Step 2 - Classify
-# -----------------------------
-requirements = [
-    RequirementClassifier.classify(req)
-    for req in requirements
-]
-
-# -----------------------------
-# Step 3 - Validate
-# -----------------------------
-requirements = RequirementValidator.validate(requirements)
-
-quality_report = RequirementQualityScorer.evaluate(
-    requirements
+result = ReadinessService.analyze(
+    sample_requirement
 )
 
-requirements = RequirementReviewer.review(
-    requirements
-)
+print("=" * 80)
+print("REQUIREMENT ENGINE OUTPUT")
+print("=" * 80)
 
-# -----------------------------
-# Step 4 - Display Results
-# -----------------------------
-print("\n===== REQUIREMENT ENGINE OUTPUT =====\n")
+for requirement in result["requirements"]:
 
-for req in requirements:
-    print(req)
+    print(requirement)
+
     print("-" * 80)
 
-print("\n")
+print()
+
 print("=" * 80)
-print(" REQUIREMENT READINESS REPORT ")
+print("QUALITY REPORT")
 print("=" * 80)
 
-for key, value in quality_report.items():
-    print(f"{key}: {value}")
+print(result["quality"])
 
-print("\n")
+print()
+
 print("=" * 80)
-print(" REQUIREMENT REVIEW ")
+print("READINESS REVIEW")
 print("=" * 80)
+
+print(result["review"])
+
+print()
+
+print("=" * 80)
+print("CRITIC REPORT")
+print("=" * 80)
+
+print(result["critic"])

@@ -1,4 +1,4 @@
-#requirement_engine/classifier.py
+# requirement_engine/classifier.py
 """
 Requirement Classifier
 
@@ -6,14 +6,14 @@ Purpose
 -------
 Classifies extracted requirements into enterprise QA categories.
 
-This module uses deterministic rules only.
+This module performs deterministic classification only.
 No AI reasoning should occur here.
 
 Future Enhancements
 -------------------
 - Multi-label classification
 - AI-assisted classification
-- Custom organization-specific categories
+- Organization-specific rule packs
 """
 
 from typing import Dict
@@ -22,6 +22,7 @@ from typing import Dict
 class RequirementClassifier:
 
     CATEGORY_KEYWORDS = {
+
         "Functional": [
             "create",
             "update",
@@ -31,7 +32,9 @@ class RequirementClassifier:
             "search",
             "filter",
             "login",
-            "logout"
+            "logout",
+            "register",
+            "submit"
         ],
 
         "Validation": [
@@ -41,35 +44,50 @@ class RequirementClassifier:
             "validation",
             "duplicate",
             "exactly",
-            "must"
+            "minimum",
+            "maximum",
+            "at least",
+            "must contain",
+            "length",
+            "format"
         ],
 
         "Security": [
             "authentication",
             "authorization",
-            "unauthorized",
             "permission",
             "access",
             "session",
             "encrypt",
             "mask",
+            "password",
+            "account lock",
+            "lock",
+            "failed attempts",
+            "mfa",
+            "otp",
+            "oauth",
+            "sso",
+            "fingerprint",
+            "biometric",
             "pii"
         ],
 
         "Performance": [
-            "seconds",
-            "performance",
             "response",
+            "response time",
+            "seconds",
+            "latency",
             "load",
-            "concurrent",
-            "throughput"
+            "throughput",
+            "concurrent"
         ],
 
         "Accessibility": [
             "keyboard",
             "screen reader",
-            "accessibility",
-            "wcag"
+            "wcag",
+            "accessibility"
         ],
 
         "UI": [
@@ -77,15 +95,15 @@ class RequirementClassifier:
             "page",
             "button",
             "field",
-            "dropdown",
-            "textbox"
+            "textbox",
+            "dropdown"
         ],
 
         "API": [
             "api",
             "endpoint",
             "request",
-            "response"
+            "response body"
         ],
 
         "Database": [
@@ -116,17 +134,16 @@ class RequirementClassifier:
             ""
         ).lower()
 
-        category = cls.DEFAULT_CATEGORY
-
-        for candidate, keywords in cls.CATEGORY_KEYWORDS.items():
+        for category, keywords in cls.CATEGORY_KEYWORDS.items():
 
             if any(
                 keyword in text
                 for keyword in keywords
             ):
-                category = candidate
-                break
 
-        requirement["category"] = category
+                requirement["category"] = category
+                return requirement
+
+        requirement["category"] = cls.DEFAULT_CATEGORY
 
         return requirement

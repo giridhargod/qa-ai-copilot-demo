@@ -1,68 +1,18 @@
 # critics/requirement_readiness_critic.py
 from critics.base_critic import BaseCritic
 
-class RequirementReadinessCritic:
+class RequirementReadinessCritic(BaseCritic):
     """
-    Reviews the Requirement Readiness output before
-    allowing the workflow to continue.
+    Enterprise Requirement Readiness Critic.
 
-    The critic never invents requirements.
-
-    It evaluates confidence,
-    consistency,
-    ambiguity,
-    and recommendation quality.
+    Responsibilities
+    ----------------
+    • Review Requirement Readiness output.
+    • Evaluate confidence.
+    • Recommend SME escalation when required.
+    • Never modify requirements.
+    • Never invent requirements.
     """
-
-    @staticmethod
-    def review(
-        quality_report: dict,
-        requirements: list
-    ) -> dict:
-
-        observations = []
-
-        confidence = 100
-
-        if quality_report["failed"] > 0:
-
-            observations.append(
-                "Some requirements failed readiness validation."
-            )
-
-            confidence -= 20
-
-        if quality_report["issues_found"] > 5:
-
-            observations.append(
-                "Large number of requirement issues detected."
-            )
-
-            confidence -= 20
-
-        needs_sme = any(
-
-            req["review"]["needs_sme"]
-
-            for req in requirements
-        )
-
-        if needs_sme:
-
-            observations.append(
-                "SME clarification recommended."
-            )
-
-            confidence -= 15
-
-        return {
-
-            "confidence": max(confidence, 0),
-
-            "approved": confidence >= 80,
-
-            "observations": observations
-        }
 
     @property
     def name(self) -> str:
@@ -70,21 +20,9 @@ class RequirementReadinessCritic:
 
     def review(
         self,
-        result: dict
+        quality_report: dict,
+        requirements: list
     ) -> dict:
-
-        quality = result.get("quality", {})
-
-        score = quality.get("overall_score", 0)
-
-        failed = quality.get("failed", 0)
-
-        issues = quality.get("issues_found", 0)
-
-        status = quality.get(
-            "status",
-            "UNKNOWN"
-        )
 
         confidence = 100
 
@@ -94,9 +32,24 @@ class RequirementReadinessCritic:
 
         reasoning = []
 
-        # -------------------------
+        failed = quality_report.get("failed", 0)
+
+        issues = quality_report.get("issues_found", 0)
+
+        overall_score = quality_report.get(
+            "overall_score",
+            0
+        )
+
+        status = quality_report.get(
+            "status",
+            "UNKNOWN"
+        )
+
+        # ----------------------------------
         # Rule 1
-        # -------------------------
+        # Failed Requirements
+        # ----------------------------------
 
         if failed > 0:
 
@@ -106,9 +59,10 @@ class RequirementReadinessCritic:
                 f"{failed} requirement(s) failed validation."
             )
 
-        # -------------------------
+        # ----------------------------------
         # Rule 2
-        # -------------------------
+        # Requirement Issues
+        # ----------------------------------
 
         if issues > 0:
 
@@ -118,38 +72,53 @@ class RequirementReadinessCritic:
                 f"{issues} issue(s) detected."
             )
 
-        # -------------------------
+        # ----------------------------------
         # Rule 3
-        # -------------------------
+        # Enterprise Threshold
+        # ----------------------------------
 
-        if score < 70:
+        if overall_score < 70:
 
-            confidence -= 5
+            confidence -= 10
 
             recommendations.append(
                 "Requirement quality is below enterprise threshold."
             )
 
-        # -------------------------
+        # ----------------------------------
         # Rule 4
-        # -------------------------
+        # SME Escalation
+        # ----------------------------------
 
-        needs_sme = status != "READY"
+        needs_sme = any(
+
+            requirement.get(
+                "review",
+                {}
+            ).get(
+                "needs_sme",
+                False
+            )
+
+            for requirement in requirements
+        )
 
         if needs_sme:
 
+            confidence -= 10
+
             recommendations.append(
-                "SME review is recommended before continuing."
+                "SME review is recommended before workflow execution."
             )
 
             reasoning.append(
-                "Workflow confidence is below the release threshold."
+                "Business clarification is required."
             )
 
         else:
 
             reasoning.append(
-                "Requirement quality satisfies enterprise readiness."
+                "Requirement Readiness satisfies enterprise quality standards."
             )
 
         confidence = max(
@@ -163,7 +132,7 @@ class RequirementReadinessCritic:
 
             and
 
-            not needs_sme
+            status == "READY"
         )
 
         return {

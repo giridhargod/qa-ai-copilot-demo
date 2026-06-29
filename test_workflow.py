@@ -15,7 +15,9 @@ Application shall support keyboard navigation.
 
 workflow = WorkflowOrchestrator()
 
-result = workflow.run(sample_requirement)
+result = workflow.run(
+    sample_requirement
+)
 
 print("=" * 80)
 print("REQUIREMENT READINESS")
@@ -30,20 +32,30 @@ print(result.requirement_review)
 print()
 
 print("=" * 80)
-print("REQUIREMENTS")
+print("CRITIC REVIEW")
 print("=" * 80)
 
-for req in result.requirements:
-    print(req)
+print(result.critic_review)
 
 print()
 
 print("=" * 80)
-print("TESTCASES")
+print("REQUIREMENTS")
 print("=" * 80)
 
-for tc in result.testcases:
-    print(tc["title"])
+for requirement in result.requirements:
+
+    print(requirement)
+
+print()
+
+print("=" * 80)
+print("TEST CASES")
+print("=" * 80)
+
+for testcase in result.testcases:
+
+    print(testcase["title"])
 
 print()
 

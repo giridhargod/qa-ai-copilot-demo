@@ -1,26 +1,12 @@
-#requirement_engine/quality.py
+# requirement_engine/quality.py
 """
 Requirement Quality Scoring Engine
-
-Purpose
--------
-Calculates quality scores for extracted requirements.
-
-The score helps determine whether requirements are
-ready for downstream QA activities.
-
-Author:
-QA AI Copilot
 """
 
 from typing import List
 
 
 class RequirementQualityScorer:
-
-    """
-    Calculates requirement readiness metrics.
-    """
 
     @classmethod
     def evaluate(
@@ -31,27 +17,32 @@ class RequirementQualityScorer:
         total = len(requirements)
 
         passed = 0
+
         failed = 0
 
         issue_count = 0
 
         category_distribution = {}
 
-        for req in requirements:
+        needs_sme = False
 
-            category = req.get(
+        for requirement in requirements:
+
+            category = requirement.get(
                 "category",
                 "Unknown"
             )
 
             category_distribution[category] = (
+
                 category_distribution.get(
                     category,
                     0
                 ) + 1
+
             )
 
-            validation = req.get(
+            validation = requirement.get(
                 "validation",
                 {}
             )
@@ -71,14 +62,38 @@ class RequirementQualityScorer:
                     )
                 )
 
+            if requirement.get(
+                "review",
+                {}
+            ).get(
+                "needs_sme",
+                False
+            ):
+
+                needs_sme = True
+
         readiness_score = 100
 
         if total:
 
             readiness_score = round(
+
                 (passed / total) * 100,
+
                 2
             )
+
+        if failed > 0:
+
+            status = "NOT READY"
+
+        elif needs_sme:
+
+            status = "READY WITH SME REVIEW"
+
+        else:
+
+            status = "READY"
 
         return {
 
@@ -93,12 +108,9 @@ class RequirementQualityScorer:
             "issues_found": issue_count,
 
             "category_distribution":
-            category_distribution,
+                category_distribution,
 
-            "status": (
-                "READY"
-                if readiness_score >= 90
-                else
-                "SME REVIEW REQUIRED"
-            )
+            "needs_sme": needs_sme,
+
+            "status": status
         }
