@@ -40,3 +40,9 @@ def process_file(uploaded_file):
         return extract_text_from_image(uploaded_file)
     else:
         return ""
+
+
+def resolve_input(uploaded_file, text_input):
+    if uploaded_file:
+        return process_file(uploaded_file)
+    return text_input

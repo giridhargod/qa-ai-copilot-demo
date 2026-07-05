@@ -1,4 +1,9 @@
-#debug_metrics.py
+#scripts/dev/debug_metrics.py
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
 from workflows.workflow import WorkflowOrchestrator
 
 workflow = WorkflowOrchestrator()

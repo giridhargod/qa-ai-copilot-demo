@@ -10,7 +10,7 @@ import streamlit as st
 import pandas as pd
 
 from workflows.workflow import WorkflowOrchestrator
-from services.file_service import process_file
+from services.file_service import resolve_input
 
 st.set_page_config(
     page_title="QA AI Copilot",
@@ -35,12 +35,7 @@ user_input = st.text_area(
 
 if st.button("🚀 Run Analysis"):
 
-    final_input = ""
-
-    if uploaded_file:
-        final_input = process_file(uploaded_file)
-    else:
-        final_input = user_input
+    final_input = resolve_input(uploaded_file, user_input)
 
     if not final_input:
 

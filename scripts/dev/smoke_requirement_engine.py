@@ -1,4 +1,9 @@
-#test_requirement_engine.py
+#scripts/dev/smoke_requirement_engine.py
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
 from services.readiness_service import ReadinessService
 
 sample_requirement = """

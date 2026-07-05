@@ -1,32 +1,19 @@
 #agents/ui_agent.py
-from agents.base_agent import BaseAgent
+from agents.base_agent import LLMAgent
 from agents.prompts import UI_AGENT_PROMPT
 from models.workflow_state import WorkflowState
 
 
-class UIAnalysisAgent(BaseAgent):
+class UIAnalysisAgent(LLMAgent):
 
-    def __init__(self, llm_service):
-        self.llm_service = llm_service
+    prompt_template = UI_AGENT_PROMPT
 
     @property
     def name(self):
         return "UIAnalysisAgent"
 
-    def execute(
-        self,
-        state: WorkflowState
-    ) -> WorkflowState:
+    def get_input(self, state: WorkflowState):
+        return state.sanitized_input
 
-        prompt = f"""
-{UI_AGENT_PROMPT}
-
-Input:
-{state.sanitized_input}
-"""
-
-        result = self.llm_service.generate(prompt)
-
+    def store_result(self, state: WorkflowState, result):
         state.ui_analysis = result
-
-        return state

@@ -1,11 +1,9 @@
 #services/openai_service.py
-import os
 import json
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+from config.settings import OPENAI_API_KEY, OPENAI_MODEL
 
 
 class OpenAIService:
@@ -13,10 +11,10 @@ class OpenAIService:
     def __init__(self):
 
         self.client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
+            api_key=OPENAI_API_KEY
         )
 
-        self.model = "gpt-4o-mini"
+        self.model = OPENAI_MODEL
 
     def generate(self, prompt):
 

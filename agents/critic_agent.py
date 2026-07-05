@@ -1,32 +1,20 @@
 #agents/critic_agent.py
-from agents.base_agent import BaseAgent
+from agents.base_agent import LLMAgent
 from agents.prompts import CRITIC_AGENT_PROMPT
 from models.workflow_state import WorkflowState
 
 
-class CriticAgent(BaseAgent):
+class CriticAgent(LLMAgent):
 
-    def __init__(self, llm_service):
-        self.llm_service = llm_service
+    prompt_template = CRITIC_AGENT_PROMPT
+    input_label = "Testcases"
 
     @property
     def name(self):
         return "CriticAgent"
 
-    def execute(
-        self,
-        state: WorkflowState
-    ) -> WorkflowState:
+    def get_input(self, state: WorkflowState):
+        return state.testcases
 
-        prompt = f"""
-{CRITIC_AGENT_PROMPT}
-
-Testcases:
-{state.testcases}
-"""
-
-        result = self.llm_service.generate(prompt)
-
+    def store_result(self, state: WorkflowState, result):
         state.critic_review = result
-
-        return state
