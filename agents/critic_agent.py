@@ -17,4 +17,4 @@ class CriticAgent(LLMAgent):
         return state.testcases
 
     def store_result(self, state: WorkflowState, result):
-        state.critic_review = result
+        state.critic_reviews["testcase"] = result

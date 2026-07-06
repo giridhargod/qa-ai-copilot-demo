@@ -34,7 +34,7 @@ class WorkflowState:
         default_factory=list
     )
 
-    critic_review: dict = field(
+    critic_reviews: dict = field(
         default_factory=dict
     )
 

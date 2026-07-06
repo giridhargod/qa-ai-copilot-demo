@@ -42,8 +42,8 @@ class RequirementReadinessAgent(BaseAgent):
             "review"
         ]
 
-        state.critic_review = readiness_result[
-            "critic"
-        ]
+        state.critic_reviews["requirement_readiness"] = (
+            readiness_result["critic"]
+        )
 
         return state

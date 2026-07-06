@@ -37,10 +37,14 @@ print(result.requirement_review)
 print()
 
 print("=" * 80)
-print("CRITIC REVIEW")
+print("CRITIC REVIEWS")
 print("=" * 80)
 
-print(result.critic_review)
+print(result.critic_reviews)
+
+assert len(result.critic_reviews) == 2, (
+    f"expected 2 critic verdicts, got {list(result.critic_reviews)}"
+)
 
 print()
 

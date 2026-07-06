@@ -235,7 +235,7 @@ if st.button("🚀 Run Analysis"):
         with tabs[8]:
 
             st.json(
-                result.critic_review
+                result.critic_reviews
             )
 
         # Execution Log
