@@ -26,17 +26,32 @@ wave files are the raw material, `LESSONS_LEARNED.md` is the distillation.
    building reliable agent systems.
 8. **Trade-offs** — what was deliberately left undone or done differently
    than the "ideal" version, and why.
-9. **Verification Performed** — what was actually run/checked to confirm the
-   change works (tests, manual runs, comparisons) — not just "should work."
-10. **Risks Introduced or Removed** — what could break because of this wave,
-    and what previously-risky thing this wave eliminated.
-11. **Rollback Strategy** — how to undo this wave if it turns out to be wrong
-    (usually: revert the commit(s); note anything that makes it *not* that
-    simple, e.g. data migrations).
-12. **Review Lesson** — one or two sentences on what this wave teaches about
-    conducting a high-quality review of this kind of change. This is the
-    sentence most likely to get copied into `LESSONS_LEARNED.md`.
-13. **Future Improvements** — near-term follow-ups surfaced by this wave.
-14. **Proposed `MASTER_CONTEXT.md` Updates** — `MASTER_CONTEXT.md` is never
-    edited directly (see its own header); every wave proposes its diff here
-    and waits for approval.
+9. **Alternatives Considered** — for each non-trivial decision in this wave,
+   the options that were rejected and why, and why the chosen option won.
+   If a decision required Product Owner / Architect approval, give it a
+   full entry in `docs/ARCHITECTURE_DECISIONS.md` instead of just this
+   section, and link to it here rather than duplicating the reasoning.
+10. **Verification Performed** — what was actually run/checked to confirm
+    the change works (tests, manual runs, comparisons) — not just "should
+    work."
+11. **Risks Introduced or Removed** — what could break because of this
+    wave, and what previously-risky thing this wave eliminated.
+12. **Rollback Strategy** — how to undo this wave if it turns out to be
+    wrong (usually: revert the commit(s); note anything that makes it *not*
+    that simple, e.g. data migrations).
+13. **Review Lesson** — one or two sentences on what this wave teaches
+    about conducting a high-quality review of this kind of change. This is
+    the sentence most likely to get promoted into `LESSONS_LEARNED.md`.
+14. **Future Improvements** — near-term follow-ups surfaced by this wave.
+15. **Proposed `MASTER_CONTEXT.md` Updates** — `MASTER_CONTEXT.md` is never
+    edited directly except with explicit sign-off (see its own header);
+    every wave proposes its diff here and waits for approval.
+
+## Relationship to `docs/ARCHITECTURE_DECISIONS.md`
+
+Not every decision in a wave needs a formal ADR — most belong in §9
+(Alternatives Considered) or §8 (Trade-offs) inline. Promote a decision to
+a full ADR when it (a) required Product Owner/Architect sign-off, (b)
+changes a data contract, workflow behavior, or documentation structure
+other waves will build on, or (c) is likely to be revisited later and the
+reasoning needs to survive independently of this wave's file.

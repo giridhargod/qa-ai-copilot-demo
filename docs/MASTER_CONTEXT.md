@@ -1,9 +1,26 @@
 # QA AI Copilot — Master Context
 
-**Version 0.1 — Draft, not yet Architect-approved.**
-Last generated: 2026-07-05, from commit `959ea54` plus uncommitted working-tree state.
+**Version 0.2 — Updated with Giri's explicit approval, 2026-07-07.**
+Last generated: 2026-07-07, from commit `3b84d25` (Wave 1 fully committed: `dbaabf2`, `236259c`, `3b84d25`).
 
 This is the primary onboarding document for any new Claude session working on QA AI Copilot. Read this before reading any other doc in `docs/`. It exists because the other docs (`ARCHITECTURE.md`, `SKILLS_GUIDE.md`, `WORKFLOW_GUIDE.md`, etc.) describe the **target** design in detail but do not say how much of it is actually built, nor what's in flight right now. This document draws that line.
+
+For a short, scannable "start here" pointer before reading the rest of this file, see `docs/SESSION_HANDOFF.md`.
+
+---
+
+## 0. Current Status (as of end of session, 2026-07-07)
+
+- **Milestone:** Post-Phase-3 hardening — closing out the architecture-review backlog before Sprint 3 / Wave 2 begins.
+- **Current wave:** **Wave 1 — Repository Cleanup, Agent Framework Improvements & Critic Data Contract Repair.** Status: **complete and committed** (`dbaabf2`, `236259c`, `3b84d25`). Full record: `docs/waves/WAVE_1.md`.
+- **Next wave:** **Not yet defined.** No Wave 2 scope has been architected or approved. Per the C² workflow, that's the Architect's (ChatGPT's) call, not Claude's to assume — see §6 for the candidate queue this session pulled from the existing backlog, not a committed plan.
+- **Next action:** Architect/Giri to prioritize one item from the Implementation Queue below (or the §6 pending-decision list) as Wave 2's scope.
+- **Open decisions:** 9 pending architecture decisions from the original review (§6), one (`#3`) now partially resolved this wave — see `docs/ARCHITECTURE_DECISIONS.md` ADR-002.
+- **Implementation queue (unordered, not yet prioritized):**
+  1. Migrate the 24-item backlog into `docs/PRODUCT_BACKLOG.md` (currently empty).
+  2. Resolve `services/requirement_intelligence_service.py`'s intent (build vs. delete).
+  3. Decide the fate of `test_design/` (§6 decision #5) — Sprint 3 stubs, unimplemented.
+  4. Any of the 9 pending architecture decisions in §6, at the Architect's discretion.
 
 ---
 
@@ -51,25 +68,31 @@ These are treated as settled per `ARCHITECTURE_DECISIONS.md` (ADR-001: foundatio
 
 ## 3. Current Implementation State
 
-This is the actual state of the code as of `959ea54` + uncommitted changes, **not** the target state described in §2 or in `SKILLS_GUIDE.md`/`WORKFLOW_GUIDE.md`. A full architecture audit was completed this session; only the highlights are captured here.
+This is the actual state of the code as of `3b84d25` (Wave 1 complete), **not** the target state described in §2 or in `SKILLS_GUIDE.md`/`WORKFLOW_GUIDE.md`.
 
 **What's real and wired end-to-end today:**
 - PII masking (naive regex-based) → Requirement extraction/classification/validation/review/quality-scoring/readiness-critic (`requirement_engine/` + `critics/` + `services/readiness_service.py`) → UI Analysis, Impact Analysis, Testcase Generation, Critic agents (all pure LLM-prompt wrappers, no deterministic backing) → Traceability, Coverage, Evaluation, Metrics → Streamlit UI.
-- The Requirement Readiness Skill (shipped in the last two commits) is the newest working capability.
+- The Requirement Readiness Skill (shipped `ee8e9e1`/`959ea54`) and Wave 1's cleanup/refactor/bug-fix work (shipped `dbaabf2`/`236259c`) are both live.
+- **Config has a single source of truth:** `config/settings.py` is now actually imported by `services/openai_service.py` (previously duplicated via a second `os.getenv()` call).
+- **PII masking reports accurate redaction counts** (previously a boolean pretending to be a count).
+- **Dead/orphaned modules removed:** `storage/sqlite_store.py`, `models/schemas.py`, `services/requirement_service.py`, `agents/requirement_quality_agent.py`, `agents/requirement_review_agent.py`, `requirement_engine/constants.py`, `services/logger_service.py`.
+- **`agents/base_agent.py` provides a shared `LLMAgent` base class**, used by `UIAnalysisAgent`, `ImpactAnalysisAgent`, `TestcaseGenerationAgent`, and `CriticAgent` — collapses what was four copies of identical constructor/build-prompt/call-LLM/store-result wiring.
+- **Root-level scratch scripts now live in `scripts/dev/`** (`smoke_workflow.py`, `smoke_requirement_engine.py`, plus the moved `debug_*.py` files) — two were renamed to `smoke_*.py` specifically to avoid pytest auto-collecting live-API scripts with no assertions.
+- **Documentation is now fully version-controlled.** All of `docs/` was uncommitted across recent sessions (see the now-resolved assumption below); everything is committed as of `3b84d25`. Engineering records now follow a two-layer convention: `docs/waves/WAVE_N.md` (one file per wave, written once, never rewritten) for the detailed point-in-time record, and `docs/LESSONS_LEARNED.md` for the curated, cross-wave CCAF/interview revision guide. See `docs/waves/README.md` for the template.
 
 **What the target architecture describes but does not exist yet:**
 - No `knowledge/` directory anywhere — all domain rules/taxonomies (`CATEGORY_KEYWORDS`, `MANDATORY_WORDS`, reviewer keyword rules, every agent prompt) are hardcoded in Python.
 - No `skills/` directory — Skill-shaped logic (Readiness orchestration, Traceability, Coverage) currently lives under `services/`, and `critics/` is an entire undocumented layer not mentioned in `ARCHITECTURE.md` at all.
-- No enforced validation/human-review gate: both the deterministic readiness critic and the AI critic compute a verdict, but nothing in `workflows/workflow.py` ever checks either one to pause or stop execution.
+- No enforced validation/human-review gate: both the deterministic readiness critic and the AI critic compute a verdict, and (as of this wave) both verdicts now reliably reach `WorkflowState.critic_reviews` without overwriting each other — but nothing in `workflows/workflow.py` yet checks either one to pause or stop execution. That gate itself is still unbuilt (§6 decision #2).
 - No schema/deterministic validation of AI agent output before it flows downstream (e.g., generated testcases are trusted as-is).
-- `test_design/` package exists (matches `SPRINT_3_DESIGN.md`'s intended module names) but **every file in it is an empty stub** — Scenario Analyzer, Duplicate Detector, Weak Test Detector, etc. are all unimplemented.
-- No real automated test suite — `tests/` and root-level `debug_*.py`/`test_*.py` scripts contain zero assertions.
+- `test_design/` package exists (matches `SPRINT_3_DESIGN.md`'s intended module names) but **every file in it is an empty stub** — Scenario Analyzer, Duplicate Detector, Weak Test Detector, etc. are all unimplemented. Deliberately left uncommitted this session (unrelated to the docs checkpoint).
+- Real automated test suite is just starting: `tests/test_critic_reviews.py` is the first real pytest test with actual assertions (Wave 1). Root-level `debug_*.py` scripts (now in `scripts/dev/`) still contain zero assertions.
 
-**Known correctness bug:** `WorkflowState.critic_review` is written by the deterministic Requirement Readiness critic and then silently overwritten by the AI `CriticAgent` later in the same run — the rule-based verdict never reaches the UI.
+**Known correctness bug — RESOLVED this wave:** `WorkflowState.critic_review` was a single field written by both the deterministic Requirement Readiness critic and the AI `CriticAgent`, so the AI run silently overwrote the rule-based verdict before it reached the UI. Fixed by replacing it with `critic_reviews: dict`, keyed by critic name (`"requirement_readiness"`, `"testcase"`), covered by `tests/test_critic_reviews.py`. This resolves the *data-loss* half of pending decision #3 (§6); the *reconciliation/UX* half (how a reviewer should read two verdicts together) is still open. Full reasoning: `docs/ARCHITECTURE_DECISIONS.md` ADR-002.
 
-**Known dead code:** `storage/sqlite_store.py` (orphaned since the `copilot.db` removal commit), `config/settings.py` (never imported — `openai_service.py` duplicates its constant instead), `models/schemas.py`, `services/requirement_service.py`, and several empty stub agent/service files.
+**Known dead code:** `services/requirement_intelligence_service.py` remains as an open, undecided empty stub — deliberately not swept up with the rest, since its name implies unresolved intent rather than confirmed-dead scaffolding (needs Architect input on build vs. delete).
 
-**Repo hygiene note:** every file in `docs/` is currently **untracked** (never committed) — this includes this document. `README.md` and `requirements.txt` currently have uncommitted corruption (stray pasted text and a leaked `git rebase --continue`) that predates this session and has not been fixed yet.
+**Repo hygiene note:** resolved this session — all of `docs/` is now committed (`3b84d25`). `README.md` and `requirements.txt` corruption was fixed in Wave 1 (`dbaabf2`).
 
 ---
 
@@ -83,13 +106,13 @@ The most recent shipped work (commits `ee8e9e1`, `959ea54`) was the **Requiremen
 
 ## 5. Active Backlog (summary)
 
-A full 24-item backlog was produced this session by auditing the code against §2/§3's gap. None of it is approved or started. By category:
+A full 24-item backlog was produced by an architecture audit prior to Wave 1. By category:
 
-- **Immediate Bugs (4):** critic-review overwrite bug; corrupted `requirements.txt`; corrupted `README.md`; PII service's fake "count" field.
-- **Refactoring (6):** collapse duplicated LLM-agent boilerplate; delete confirmed-dead files; consolidate OpenAI model config; clear root-level debug script clutter; normalize `services/__init__.py` exports; move a small UI business-decision out of `streamlit_app.py`.
-- **Architecture Decisions Required (9):** see §6.
-- **Future Enhancements (3):** build a real pytest suite; improve PII detection robustness; resolve the intent of `requirement_intelligence_service.py`.
-- **Documentation Improvements (2):** fix stale README architecture diagram; document `critics/` in `ARCHITECTURE.md`.
+- **Immediate Bugs (4) — ALL RESOLVED (Wave 1):** critic-review overwrite bug (`236259c`); corrupted `requirements.txt` (`dbaabf2`); corrupted `README.md` (`dbaabf2`); PII service's fake "count" field (`dbaabf2`).
+- **Refactoring (6) — ALL RESOLVED (Wave 1, `dbaabf2`):** collapse duplicated LLM-agent boilerplate; delete confirmed-dead files; consolidate OpenAI model config; clear root-level debug script clutter; normalize `services/__init__.py` exports; move a small UI business-decision out of `streamlit_app.py`.
+- **Architecture Decisions Required (9):** see §6. Decision #3 partially resolved this wave (data-loss half only).
+- **Future Enhancements (3):** build a real pytest suite (started — `tests/test_critic_reviews.py`); improve PII detection robustness; resolve the intent of `requirement_intelligence_service.py`.
+- **Documentation Improvements (2):** fix stale README architecture diagram; document `critics/` in `ARCHITECTURE.md`. Neither done yet.
 
 Full descriptions/effort/priority live in this session's conversation history and should be migrated into `docs/PRODUCT_BACKLOG.md` (currently an empty placeholder) as a follow-up — not yet done.
 
@@ -101,7 +124,7 @@ These require Architect (ChatGPT) sign-off before implementation, per the C² wo
 
 1. **Knowledge Pack mechanism** — format and loading strategy for externalizing hardcoded domain rules/prompts.
 2. **Human-review/validation gate design** — how workflows actually pause on low-confidence or failed-critic results.
-3. **Reconciling the two independent "readiness" verdicts** (quality-score status vs. readiness-critic approval).
+3. **Reconciling the two independent "readiness" verdicts** (quality-score status vs. readiness-critic approval). **Partially resolved (Wave 1):** the data-loss bug (one verdict silently overwriting the other) is fixed — see `ARCHITECTURE_DECISIONS.md` ADR-002. Still open: how a reviewer should read/reconcile two coexisting verdicts in the UI/UX.
 4. **Where AI-output schema validation lives** before downstream Skills consume it.
 5. **Fate of `test_design/`** — build it out as the real Skill layer, or delete the stubs and rethink Sprint 3's shape.
 6. **Relocating Skill-shaped logic out of `services/`** (Readiness, Traceability, Coverage orchestration).
@@ -143,13 +166,13 @@ The long-term target roles are AI Engineer, Enterprise AI Architect, QA Architec
 
 ## Assumptions Made
 
-Everything below was inferred from the current file state and git history, not confirmed by the Architect. Verify before this document is promoted to v1.0:
+Originally inferred from file state and git history, not confirmed by the Architect. Status updated 2026-07-07 — items 2 and 3 are now resolved; the rest remain open and should still be verified before this document is promoted to v1.0:
 
-1. **Sprint numbering is unclear.** I assumed `SPRINT_3_DESIGN.md` describes the *current* sprint, but the last shipped feature (Requirement Readiness) isn't part of that design doc's scope. It's unverified whether Requirement Readiness was an unplanned/interleaved sprint, or whether sprint numbering/tracking exists anywhere authoritative.
-2. **`ROADMAP.md`, `PRODUCT_BACKLOG.md`, `FIRST_DAY.md`, `KNOWLEDGE_PACKS.md`, `CODING_STANDARDS.md`, and `QA_AI_COPILOT_PHILOSOPHY.md` are all 0-byte placeholders.** I've treated them as "not yet written" rather than "intentionally empty" — unverified which.
-3. **All of `docs/` is uncommitted (git status shows `??` for every file).** I assumed this reflects work-in-progress documentation authored across recent sessions, not accidental staging — unverified.
-4. **`critics/` was treated as real, in-production code** (not a stub), distinct from the still-unimplemented `test_design/` critic. Confirm this distinction is intentional.
-5. **I assumed the Requirement Readiness Skill (last commit) is considered "done"/shipped** rather than still in progress, based on the commit message "Release ... v1.0" — unverified against any actual Definition-of-Done checklist being run.
-6. **I assumed `test_design/`'s empty stub files represent scaffolding-not-yet-filled**, rather than an abandoned/superseded direction — this materially affects whether Pending Decision #5 (§6) is "build it" vs. "delete it."
-7. **I assumed the backlog produced this session is exhaustive enough to seed §5/§6**, but it came from one audit pass and may have missed items an Architect-level review would catch.
-8. **The corrupted `README.md`/`requirements.txt` state was assumed to be accidental** (paste/rebase mishap) rather than a deliberate in-progress edit — unverified with Giri.
+1. **Sprint numbering is unclear.** Still open. `SPRINT_3_DESIGN.md` describes a sprint that the last shipped feature (Requirement Readiness) isn't part of, and Wave 1 (this session) used "Wave" as its unit of work instead of "Sprint" — it's unverified whether these are the same tracking system, parallel systems, or whether Wave/Sprint terminology itself needs reconciling. Flagged, not resolved.
+2. **RESOLVED (2026-07-07):** `ROADMAP.md`, `PRODUCT_BACKLOG.md`, `FIRST_DAY.md`, `KNOWLEDGE_PACKS.md`, `CODING_STANDARDS.md`, and `QA_AI_COPILOT_PHILOSOPHY.md` are committed as 0-byte placeholders — confirmed intentional (not yet written), now tracked in git rather than floating as an unverified working-tree state.
+3. **RESOLVED (2026-07-07):** all of `docs/` is now committed (`3b84d25`) — confirmed as intentional work-in-progress documentation, not accidental staging. See `docs/ARCHITECTURE_DECISIONS.md` ADR-003 for the restructuring decision made alongside committing it.
+4. **`critics/` was treated as real, in-production code** (not a stub), distinct from the still-unimplemented `test_design/` critic. Still unconfirmed as an intentional distinction — not addressed this session.
+5. **I assumed the Requirement Readiness Skill is considered "done"/shipped** rather than still in progress, based on the commit message "Release ... v1.0" — still unverified against any actual Definition-of-Done checklist being run.
+6. **I assumed `test_design/`'s empty stub files represent scaffolding-not-yet-filled**, rather than an abandoned/superseded direction — still open, materially affects whether Pending Decision #5 (§6) is "build it" vs. "delete it." `test_design/` remains uncommitted and untouched this session.
+7. **I assumed the 24-item backlog is exhaustive enough to seed §5/§6** — still unverified against an Architect-level review; Wave 1 closed 10 of the 24 items but did not re-audit for completeness.
+8. **The corrupted `README.md`/`requirements.txt` state was assumed to be accidental** — moot now (fixed in Wave 1), but the root cause was never confirmed with Giri, so the same class of corruption could recur unnoticed.

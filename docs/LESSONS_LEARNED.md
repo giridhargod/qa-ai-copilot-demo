@@ -8,8 +8,11 @@ remembering *after* the wave itself is old news. Not everything from a wave
 gets promoted here — only what generalizes.
 
 Each entry is tagged with the categories it touches and links back to its
-source wave. When a new wave surfaces a pattern already listed here, add a
-"Recurs in" reference rather than writing a new entry.
+source wave. Tag vocabulary: **CCAF** · **Enterprise architecture** ·
+**AI engineering** · **QA engineering** · **Python** · **Interview value** ·
+**Practical engineering lesson** · **Code review lessons** ·
+**Git workflow lessons**. When a new wave surfaces a pattern already listed
+here, add a "Recurs in" reference rather than writing a new entry.
 
 ---
 
@@ -136,3 +139,70 @@ config duplication has no legitimate use case in a single-process app.
 
 **Interview value:** minor on its own, but a clean example of "unused code
 isn't neutral — it's a second source of truth waiting to drift."
+
+---
+
+## Entry: A Correctness Bug Can Be Separable From Its Design Decision
+
+**Source:** `docs/ARCHITECTURE_DECISIONS.md` ADR-002; `docs/waves/WAVE_1.md`
+§4, §8, §10.
+
+**Tags:** CCAF · Enterprise architecture · AI engineering · Code review
+lessons · Practical engineering lesson · Interview value
+
+**What was learned:** the `critic_review` overwrite bug had been deferred
+because "fixing it properly" seemed to require an architecture decision
+(how should two independent verdicts be reconciled for a human reviewer?).
+On review, the *data-loss* part (one verdict silently vanishing) and the
+*reconciliation-UX* part (how a reviewer should read two verdicts together)
+turned out to be separable — namespacing the dict by critic name fixes the
+former without deciding the latter.
+
+**Why this approach vs. alternatives:** the tempting alternative was to
+either wait indefinitely for the full design decision, or to make the UX
+call unilaterally while "just fixing the bug." Both were rejected — see
+ADR-002 for the full alternatives list.
+
+**Recurs in:** any time a bug report says "the real fix needs a redesign."
+Good review practice checks whether the *symptom* (data loss, a crash, a
+silent failure) can be resolved independently of the *design question*
+(how should this ideally work) before accepting an indefinite deferral.
+
+**Interview value:** a strong, concrete answer to "how do you unblock a bug
+fix that's stuck behind a bigger architecture decision" — most candidates
+either wait or over-reach; separating the two is the actual skill.
+
+---
+
+## Entry: Reuse-Before-Create Applies to Documentation, Not Just Code
+
+**Source:** `docs/ARCHITECTURE_DECISIONS.md` ADR-003; `docs/waves/WAVE_1.md`.
+
+**Tags:** Enterprise architecture · Code review lessons · Git workflow
+lessons · Practical engineering lesson · Interview value
+
+**What was learned:** asked to create two new recurring documentation
+artifacts, the right first move was the same instinct engineers apply to
+code — check what already exists before adding something new. Two existing,
+half-realized docs (`IMPLEMENTATION_CHANGES.md`, `LESSONS_LEARNED.md`)
+already covered most of what was requested; creating two more parallel
+docs would have produced three sources of truth narrating the same "why"
+for the same change, with no mechanism keeping them consistent.
+
+**Why this approach vs. alternatives:** see ADR-003. The key move was
+presenting the reasoning and alternatives *before* implementing, and
+getting explicit sign-off on a structure that didn't literally match the
+original request — rather than either blindly complying (more doc drift)
+or silently substituting a different structure without asking.
+
+**Git workflow lesson:** the doc restructuring was committed separately
+from the code bug fix (`3b84d25` vs `236259c`), even though both happened
+in the same session — keeping commits scoped to one concern makes each
+one independently revertable and reviewable, and `git mv` was used for the
+file rename specifically to preserve history (`git log --follow` still
+finds `WAVE_1.md`'s pre-rename commits).
+
+**Interview value:** "how do you handle a request that, if implemented
+literally, would create technical debt" — the answer is: implement the
+intent, not the literal ask, but only after surfacing the trade-off and
+getting sign-off, not by unilaterally deciding you know better.
