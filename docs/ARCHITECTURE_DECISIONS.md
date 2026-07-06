@@ -1,0 +1,1 @@
+Decision ADR-001: Product Vision and Engineering Principles are foundational documents. They should evolve only when there is a significant architectural reason. Routine feature work should not modify them.
