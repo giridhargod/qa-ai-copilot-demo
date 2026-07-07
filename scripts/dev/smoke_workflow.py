@@ -25,6 +25,14 @@ result = workflow.run(
 )
 
 print("=" * 80)
+print("WORKFLOW STATUS")
+print("=" * 80)
+
+print(result.status, "-", result.status_reason)
+
+print()
+
+print("=" * 80)
 print("REQUIREMENT READINESS")
 print("=" * 80)
 
@@ -42,9 +50,19 @@ print("=" * 80)
 
 print(result.critic_reviews)
 
-assert len(result.critic_reviews) == 2, (
-    f"expected 2 critic verdicts, got {list(result.critic_reviews)}"
-)
+from governance import WorkflowStatus
+
+if result.status == WorkflowStatus.COMPLETED:
+    assert len(result.critic_reviews) == 2, (
+        f"expected 2 critic verdicts on a completed run, "
+        f"got {list(result.critic_reviews)}"
+    )
+else:
+    print(
+        f"Run halted before completion ({result.status}) — "
+        f"skipping the 2-critic assertion, this is expected "
+        f"governance behavior now, not a bug."
+    )
 
 print()
 

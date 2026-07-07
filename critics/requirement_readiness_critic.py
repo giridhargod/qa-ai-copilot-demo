@@ -1,5 +1,13 @@
 # critics/requirement_readiness_critic.py
 from critics.base_critic import BaseCritic
+from governance.contracts import GateDecision
+from governance.status import WorkflowStatus
+
+# Enterprise thresholds for translating this Critic's verdict into a
+# workflow-control decision. These are business thresholds, owned by
+# this Critic (not Governance) — tune here, not in governance/.
+HARD_FAIL_CONFIDENCE = 40
+
 
 class RequirementReadinessCritic(BaseCritic):
     """
@@ -149,3 +157,51 @@ class RequirementReadinessCritic(BaseCritic):
 
             "reasoning": reasoning
         }
+
+    @staticmethod
+    def to_gate_decision(review_result: dict) -> GateDecision:
+        """
+        Translates this Critic's verdict into the neutral GateDecision
+        contract Governance understands. This is where the business
+        interpretation of "approved"/"confidence"/"needs_sme" lives —
+        Governance never inspects these fields itself.
+        """
+
+        confidence = review_result.get("confidence", 0)
+        approved = review_result.get("approved", False)
+        needs_sme = review_result.get("needs_sme", False)
+
+        if needs_sme:
+            return GateDecision(
+                proceed=False,
+                status=WorkflowStatus.NEEDS_SME,
+                reason=(
+                    "Requirement Readiness Critic flagged SME review "
+                    "as required before proceeding."
+                ),
+            )
+
+        if approved:
+            return GateDecision(
+                proceed=True,
+                status=WorkflowStatus.RUNNING,
+            )
+
+        if confidence < HARD_FAIL_CONFIDENCE:
+            return GateDecision(
+                proceed=False,
+                status=WorkflowStatus.FAILED_VALIDATION,
+                reason=(
+                    f"Requirement Readiness confidence ({confidence}) is "
+                    f"below the enterprise floor ({HARD_FAIL_CONFIDENCE})."
+                ),
+            )
+
+        return GateDecision(
+            proceed=False,
+            status=WorkflowStatus.PAUSED_FOR_REVIEW,
+            reason=(
+                f"Requirement Readiness confidence ({confidence}) is "
+                "below the enterprise approval threshold."
+            ),
+        )

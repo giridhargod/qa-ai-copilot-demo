@@ -11,6 +11,7 @@ import pandas as pd
 
 from workflows.workflow import WorkflowOrchestrator
 from services.file_service import resolve_input
+from governance import WorkflowStatus
 
 st.set_page_config(
     page_title="QA AI Copilot",
@@ -54,6 +55,55 @@ if st.button("🚀 Run Analysis"):
             result = workflow.run(
                 final_input
             )
+
+        if result.status != WorkflowStatus.COMPLETED:
+
+            halt_labels = {
+                WorkflowStatus.NEEDS_SME:
+                    "⏸ Paused — SME Review Required",
+                WorkflowStatus.PAUSED_FOR_REVIEW:
+                    "⏸ Paused for Human Review",
+                WorkflowStatus.FAILED_VALIDATION:
+                    "❌ Failed Validation",
+                WorkflowStatus.FAILED_AGENT:
+                    "❌ Agent Failure",
+            }
+
+            label = halt_labels.get(
+                result.status,
+                f"⏸ {result.status.value}"
+            )
+
+            if result.status in (
+                WorkflowStatus.FAILED_VALIDATION,
+                WorkflowStatus.FAILED_AGENT,
+            ):
+                st.error(f"{label}\n\n{result.status_reason}")
+            else:
+                st.warning(f"{label}\n\n{result.status_reason}")
+
+            st.subheader("What Ran Before the Halt")
+
+            execution_rows = [
+                {
+                    "Agent": item.agent_name,
+                    "Status": item.status,
+                    "Executed At": item.executed_at,
+                    "Error": item.error_message or "",
+                }
+                for item in result.execution_log
+            ]
+
+            st.dataframe(
+                pd.DataFrame(execution_rows),
+                use_container_width=True
+            )
+
+            if result.critic_reviews:
+                st.subheader("Critic Verdicts So Far")
+                st.json(result.critic_reviews)
+
+            st.stop()
 
         st.success(
             "Analysis Completed"

@@ -2,8 +2,25 @@
 import json
 
 from openai import OpenAI
+from openai import (
+    RateLimitError,
+    APITimeoutError,
+    APIConnectionError,
+    InternalServerError,
+)
 
 from config.settings import OPENAI_API_KEY, OPENAI_MODEL
+
+# Exception types considered transient (worth retrying) for this
+# provider. Kept here, not in governance/, so Governance stays
+# LLM-provider-agnostic per the platform's stable architecture
+# decisions.
+TRANSIENT_EXCEPTIONS = (
+    RateLimitError,
+    APITimeoutError,
+    APIConnectionError,
+    InternalServerError,
+)
 
 
 class OpenAIService:

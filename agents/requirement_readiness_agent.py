@@ -5,6 +5,10 @@ from models.workflow_state import WorkflowState
 
 from services.readiness_service import ReadinessService
 
+from critics.requirement_readiness_critic import (
+    RequirementReadinessCritic
+)
+
 
 class RequirementReadinessAgent(BaseAgent):
     """
@@ -47,3 +51,12 @@ class RequirementReadinessAgent(BaseAgent):
         )
 
         return state
+
+    def gate_check(self, state: WorkflowState):
+        review_result = state.critic_reviews.get(
+            "requirement_readiness", {}
+        )
+
+        return RequirementReadinessCritic.to_gate_decision(
+            review_result
+        )

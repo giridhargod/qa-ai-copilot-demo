@@ -1,10 +1,15 @@
 # models/workflow_state.py
 from dataclasses import dataclass, field
 from models.execution_record import ExecutionRecord
+from governance.status import WorkflowStatus
 
 
 @dataclass
 class WorkflowState:
+
+    status: WorkflowStatus = WorkflowStatus.NOT_STARTED
+
+    status_reason: str = ""
 
     raw_input: str = ""
 

@@ -1,6 +1,7 @@
 #models/execution_record.py
 from dataclasses import dataclass
 
+
 @dataclass
 class ExecutionRecord:
 
@@ -9,3 +10,5 @@ class ExecutionRecord:
     status: str
 
     executed_at: str
+
+    error_message: str | None = None

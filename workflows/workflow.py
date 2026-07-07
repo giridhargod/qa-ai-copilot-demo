@@ -12,9 +12,15 @@ from agents import (
 
 from models import WorkflowState
 from services import OpenAIService
+from services.openai_service import TRANSIENT_EXCEPTIONS
 from services.pii_service import process_pii
 from models import ExecutionRecord
 from services import TimeService
+from governance import WorkflowStatus
+from governance.execution_guard import ExecutionGuard
+from governance.retry_policy import RetryPolicy
+from governance.gate_engine import GateEngine
+from governance.workflow_step import WorkflowStep
 
 class WorkflowOrchestrator:
 
@@ -22,29 +28,38 @@ class WorkflowOrchestrator:
 
         llm_service = OpenAIService()
 
+        self.execution_guard = ExecutionGuard(
+            retry_policy=RetryPolicy(
+                max_attempts=2,
+                transient_exceptions=TRANSIENT_EXCEPTIONS,
+            )
+        )
+
+        self.gate_engine = GateEngine()
+
         self.requirement_readiness_agent = (
             RequirementReadinessAgent()
         )
 
-        self.agents = [
+        self.steps = [
 
-            self.requirement_readiness_agent,
+            WorkflowStep(self.requirement_readiness_agent),
 
-            UIAnalysisAgent(
+            WorkflowStep(UIAnalysisAgent(
                 llm_service
-            ),
+            )),
 
-            ImpactAnalysisAgent(
+            WorkflowStep(ImpactAnalysisAgent(
                 llm_service
-            ),
+            )),
 
-            TestcaseGenerationAgent(
+            WorkflowStep(TestcaseGenerationAgent(
                 llm_service
-            ),
+            )),
 
-            CriticAgent(
+            WorkflowStep(CriticAgent(
                 llm_service
-            )
+            ))
         ]
 
     def run(
@@ -53,6 +68,8 @@ class WorkflowOrchestrator:
     ) -> WorkflowState:
 
         state = WorkflowState()
+
+        state.status = WorkflowStatus.RUNNING
 
         workflow_start = datetime.now()
 
@@ -75,17 +92,41 @@ class WorkflowOrchestrator:
             )
         )
 
-        for agent in self.agents:
+        for step in self.steps:
 
-            state = agent.execute(state)
+            outcome = self.execution_guard.run(step.agent, state)
 
-            state.execution_log.append(
-                ExecutionRecord(
-                    agent_name=agent.name,
-                    status="SUCCESS",
-                    executed_at=TimeService.get_current_ist()
+            state = outcome.state
+
+            state.execution_log.append(outcome.record)
+
+            if not outcome.succeeded:
+
+                if not step.critical:
+                    continue
+
+                state.status = (
+                    WorkflowStatus.FAILED_VALIDATION
+                    if outcome.record.status == "FAILED_VALIDATION"
+                    else WorkflowStatus.FAILED_AGENT
                 )
-            )
+
+                state.status_reason = (
+                    f"{step.agent.name} failed: "
+                    f"{outcome.record.error_message}"
+                )
+
+                return state
+
+            decision = self.gate_engine.evaluate(step.agent, state)
+
+            if not decision.proceed:
+
+                state.status = decision.status
+
+                state.status_reason = decision.reason
+
+                return state
 
         from services.traceability_service import (
             TraceabilityService
@@ -133,5 +174,7 @@ class WorkflowOrchestrator:
                 state.execution_log
             )
         )
+
+        state.status = WorkflowStatus.COMPLETED
 
         return state
