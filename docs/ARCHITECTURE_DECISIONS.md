@@ -49,3 +49,35 @@ Decision ADR-001: Product Vision and Engineering Principles are foundational doc
 - Requires discipline to keep `LESSONS_LEARNED.md` curated (only 1–3 patterns promoted per wave) rather than letting it become a second copy of the wave file — this is a process risk, not a structural one; called out explicitly in `docs/LESSONS_LEARNED.md`'s own header.
 
 **Implementation impact:** `docs/IMPLEMENTATION_CHANGES.md` → `docs/waves/WAVE_1.md` (git-mv, preserves history); `docs/waves/README.md` added (template/convention); `docs/LESSONS_LEARNED.md` rebuilt with a tagged-entry format. All previously-uncommitted `docs/*.md` scaffolding committed alongside as a documentation checkpoint. Full detail: `docs/waves/WAVE_1.md` (historical, frozen) — this ADR is the authoritative record of the decision itself going forward.
+
+---
+
+## ADR-004: Workflow Governance Layer — Human-Review Gate as Reusable Runtime
+
+**Date:** 2026-07-08
+**Status:** Decided and implemented (Wave 2, pending commit).
+**Requires Product Owner/Architect approval:** Yes — approved (design reviewed and Wave 2 scope confirmed before implementation began).
+
+**Context:** Wave 1 fixed `critic_reviews`'s data-loss bug but left the underlying gap untouched: `RequirementReadinessAgent` computed a real deterministic verdict (`approved`, `confidence`, `needs_sme`), and `workflow.py` ran every downstream AI stage regardless of it. The platform's stated principle — "Rules → AI → Validation → Human Review. Never AI → Final Answer" — was fiction in the code. This was raised as the top finding of a Wave 2 readiness review and approved as Wave 2's scope, reframed from "add a pause feature" to "build the reusable Workflow Governance runtime every future Skill plugs into."
+
+**Decisions made, each requiring its own resolution:**
+
+**(A) Scope: halt-and-return vs. suspend-and-resume.** A truly resumable paused workflow requires persisting `WorkflowState` somewhere a human can act on it later; persistence (pending decision #9) is unresolved and SQLite is confirmed dead. **Decided:** halt-and-return only — the orchestrator stops early and returns a `WorkflowState` explaining why; no queue, no resume action, no override status. `ARCHITECTURE.md`'s existing "Human Review Architecture" section already names both halves ("pause... and allow execution to continue once resolved"); this wave delivers only the first half, explicitly deferring the second to whenever decision #9 is resolved.
+
+**(B) Where Gate rule logic lives.** Three options considered:
+1. `workflows/governance.py`, colocated with the orchestrator — rejected: puts business-threshold interpretation inside the Workflow layer, contradicting the stable decision "workflows orchestrate, never implement business logic."
+2. A generic `CriticGate(verdict_key=..., thresholds=...)` class living in Governance, configured per-Skill — this was the initial proposal, but still has Governance reaching into named business fields (`confidence`, `needs_sme`), just via configuration instead of hardcoding. Rejected after Architect feedback: "Skills and Critics make decisions; Governance only executes them."
+3. **Chosen:** the Critic itself exposes `to_gate_decision(review_result) -> GateDecision` (`critics/requirement_readiness_critic.py`); the Agent's `gate_check(state)` hook (added to `BaseAgent`, default `None`) delegates to it; Governance's `GateEngine` only ever sees the resulting neutral `GateDecision`, never a business field.
+
+**(C) Where the `governance/` package sits.** Considered folding into `critics/` (reuse an existing directory) — rejected: `critics/` holds business-logic verdicts, while the guard/retry/gate-engine mechanics are domain-blind runtime plumbing; mixing them blurs the seam this wave exists to draw. **Decided:** a new top-level `governance/` package. This lightly touches pending decision #7 (formal directory-to-layer mapping) earlier than planned, but `ARCHITECTURE.md`'s existing Workflow Layer description already names "approvals" and "auditability" as responsibilities of that layer — `governance/` is the concrete implementation of a responsibility already assigned, not an unplanned 8th layer.
+
+**(D) Internal modularity.** Explicit Architect direction: no single large `Governance` class. **Decided:** five single-responsibility components — `WorkflowStatus`/`GateDecision` (contracts), `RetryPolicy`, `ExecutionGuard`, `OutputValidator`, `GateEngine`, `WorkflowStep` — each independently unit-testable without the others.
+
+**Reasoning:** the common thread across (B), (C), and (D) is the same rule stated once and applied three times: Governance is a runtime that executes decisions, never one that makes them. Every design choice that would have blurred that line (parameterized thresholds in Governance, folding Governance into a business-logic directory, one large class owning both mechanics and judgment) was rejected in favor of the option that kept the boundary provable by inspection — Governance's source contains no confidence thresholds, no `needs_sme` checks, no OpenAI-specific exception types.
+
+**Trade-offs:**
+- `HARD_FAIL_CONFIDENCE = 40` (`critics/requirement_readiness_critic.py`) is an engineering-chosen default standing in for a Product Owner business decision — isolated to one named constant specifically so it's cheap to override.
+- Only the Requirement Readiness step is gated this wave; the `CriticAgent`'s testcase verdict could use the identical pattern but wasn't wired up, since no current consumer needs it yet.
+- `critic_reviews`'s free-string keys (flagged as debt in ADR-002) are now read programmatically by `to_gate_decision()` — arguably past the "revisit when a third critic arrives" trigger Wave 1 set, but not converted to an enum this wave (see `docs/waves/WAVE_2.md` §14).
+
+**Implementation impact:** new `governance/` package (8 files); `models/execution_record.py`, `models/workflow_state.py`, `agents/base_agent.py`, `agents/requirement_readiness_agent.py`, `critics/requirement_readiness_critic.py`, `services/openai_service.py`, `workflows/workflow.py`, `app/streamlit_app.py`, `scripts/dev/smoke_workflow.py` changed; 6 new test files (38/38 tests passing). Full detail: `docs/waves/WAVE_2.md`.

@@ -1,7 +1,7 @@
 # QA AI Copilot — Master Context
 
-**Version 0.2 — Updated with Giri's explicit approval, 2026-07-07.**
-Last generated: 2026-07-07, from commit `3b84d25` (Wave 1 fully committed: `dbaabf2`, `236259c`, `3b84d25`).
+**Version 0.3 — Updated with Giri's explicit approval, 2026-07-08.**
+Last generated: 2026-07-08, from Wave 2 (Workflow Governance Layer), implemented and documented, pending commit.
 
 This is the primary onboarding document for any new Claude session working on QA AI Copilot. Read this before reading any other doc in `docs/`. It exists because the other docs (`ARCHITECTURE.md`, `SKILLS_GUIDE.md`, `WORKFLOW_GUIDE.md`, etc.) describe the **target** design in detail but do not say how much of it is actually built, nor what's in flight right now. This document draws that line.
 
@@ -9,18 +9,19 @@ For a short, scannable "start here" pointer before reading the rest of this file
 
 ---
 
-## 0. Current Status (as of end of session, 2026-07-07)
+## 0. Current Status (as of end of session, 2026-07-08)
 
-- **Milestone:** Post-Phase-3 hardening — closing out the architecture-review backlog before Sprint 3 / Wave 2 begins.
-- **Current wave:** **Wave 1 — Repository Cleanup, Agent Framework Improvements & Critic Data Contract Repair.** Status: **complete and committed** (`dbaabf2`, `236259c`, `3b84d25`). Full record: `docs/waves/WAVE_1.md`.
-- **Next wave:** **Not yet defined.** No Wave 2 scope has been architected or approved. Per the C² workflow, that's the Architect's (ChatGPT's) call, not Claude's to assume — see §6 for the candidate queue this session pulled from the existing backlog, not a committed plan.
-- **Next action:** Architect/Giri to prioritize one item from the Implementation Queue below (or the §6 pending-decision list) as Wave 2's scope.
-- **Open decisions:** 9 pending architecture decisions from the original review (§6), one (`#3`) now partially resolved this wave — see `docs/ARCHITECTURE_DECISIONS.md` ADR-002.
+- **Milestone:** Workflow Governance Layer shipped — the platform's "Rules → AI → Validation → Human Review" principle is now enforced in code, not just stated.
+- **Current wave:** **Wave 2 — Workflow Governance Layer (Human-Review / Validation Gate).** Status: **implemented, tested (38/38 passing), documented; pending commit.** Full record: `docs/waves/WAVE_2.md`; design decisions: `docs/ARCHITECTURE_DECISIONS.md` ADR-004.
+- **Previous wave:** Wave 1 — Repository Cleanup, Agent Framework Improvements & Critic Data Contract Repair. Complete and committed (`dbaabf2`, `236259c`, `3b84d25`). Full record: `docs/waves/WAVE_1.md`.
+- **Next wave:** **Not yet defined.** Per the C² workflow, Wave 3 scope is the Architect's/Giri's call. Candidates surfacing from Wave 2: converting `critic_reviews`'s free-string keys to an enum (see §6 decision #3 note below), resolving persistence (decision #9) to unlock resume-after-pause, or building out `test_design/` now that it would inherit a working gate instead of repeating the ignored-verdict pattern.
+- **Open decisions:** 8 of the original 9 pending architecture decisions remain (§6) — decision #2 (human-review/validation gate design) is now **resolved** for the halt half; its resume half is folded into decision #9 (persistence).
 - **Implementation queue (unordered, not yet prioritized):**
   1. Migrate the 24-item backlog into `docs/PRODUCT_BACKLOG.md` (currently empty).
   2. Resolve `services/requirement_intelligence_service.py`'s intent (build vs. delete).
   3. Decide the fate of `test_design/` (§6 decision #5) — Sprint 3 stubs, unimplemented.
-  4. Any of the 9 pending architecture decisions in §6, at the Architect's discretion.
+  4. Convert `critic_reviews`'s free-string keys to an enum (Wave 1 debt, now read programmatically by Wave 2's gate — see `docs/waves/WAVE_2.md` §14).
+  5. Any of the remaining 8 pending architecture decisions in §6, at the Architect's discretion.
 
 ---
 
@@ -68,10 +69,13 @@ These are treated as settled per `ARCHITECTURE_DECISIONS.md` (ADR-001: foundatio
 
 ## 3. Current Implementation State
 
-This is the actual state of the code as of `3b84d25` (Wave 1 complete), **not** the target state described in §2 or in `SKILLS_GUIDE.md`/`WORKFLOW_GUIDE.md`.
+This is the actual state of the code as of Wave 2 (implemented, pending commit), **not** the target state described in §2 or in `SKILLS_GUIDE.md`/`WORKFLOW_GUIDE.md`.
 
 **What's real and wired end-to-end today:**
-- PII masking (naive regex-based) → Requirement extraction/classification/validation/review/quality-scoring/readiness-critic (`requirement_engine/` + `critics/` + `services/readiness_service.py`) → UI Analysis, Impact Analysis, Testcase Generation, Critic agents (all pure LLM-prompt wrappers, no deterministic backing) → Traceability, Coverage, Evaluation, Metrics → Streamlit UI.
+- PII masking (naive regex-based) → Requirement extraction/classification/validation/review/quality-scoring/readiness-critic (`requirement_engine/` + `critics/` + `services/readiness_service.py`) → **Governance Gate (new, Wave 2)** → UI Analysis, Impact Analysis, Testcase Generation, Critic agents (all pure LLM-prompt wrappers, no deterministic backing) → Traceability, Coverage, Evaluation, Metrics → Streamlit UI.
+- **The Workflow Governance Layer is real and wired (Wave 2):** a new `governance/` package (`WorkflowStatus`, `GateDecision`, `RetryPolicy`, `ExecutionGuard`, `OutputValidator`, `GateEngine`, `WorkflowStep`) now enforces "Rules → AI → Validation → Human Review" in code. The Requirement Readiness Critic's verdict (`approved`/`confidence`/`needs_sme`) is translated into a `GateDecision` (`critics/requirement_readiness_critic.py::to_gate_decision`) and can halt the workflow before any AI stage runs — `WorkflowState.status` now genuinely reflects `RUNNING`/`PAUSED_FOR_REVIEW`/`NEEDS_SME`/`FAILED_VALIDATION`/`FAILED_AGENT`/`COMPLETED`, and the Streamlit UI renders accordingly instead of always claiming "Analysis Completed." Full detail: `docs/waves/WAVE_2.md`; design reasoning: `docs/ARCHITECTURE_DECISIONS.md` ADR-004.
+- **Agent execution is now resilient, not fragile:** `ExecutionGuard` catches exceptions (with a narrow, caller-supplied transient-exception retry policy) instead of letting one agent failure crash the whole process; `ExecutionRecord.status`/`error_message` reflect true outcome instead of a hardcoded `"SUCCESS"`.
+- **AI output is validated before it reaches workflow state:** `LLMAgent.validate_result()` (default: reject empty/falsy output) closes the previously-silent failure where `OpenAIService.extract_json()` returning `{}` on malformed JSON flowed downstream as if it were a legitimate result.
 - The Requirement Readiness Skill (shipped `ee8e9e1`/`959ea54`) and Wave 1's cleanup/refactor/bug-fix work (shipped `dbaabf2`/`236259c`) are both live.
 - **Config has a single source of truth:** `config/settings.py` is now actually imported by `services/openai_service.py` (previously duplicated via a second `os.getenv()` call).
 - **PII masking reports accurate redaction counts** (previously a boolean pretending to be a count).
@@ -82,17 +86,19 @@ This is the actual state of the code as of `3b84d25` (Wave 1 complete), **not** 
 
 **What the target architecture describes but does not exist yet:**
 - No `knowledge/` directory anywhere — all domain rules/taxonomies (`CATEGORY_KEYWORDS`, `MANDATORY_WORDS`, reviewer keyword rules, every agent prompt) are hardcoded in Python.
-- No `skills/` directory — Skill-shaped logic (Readiness orchestration, Traceability, Coverage) currently lives under `services/`, and `critics/` is an entire undocumented layer not mentioned in `ARCHITECTURE.md` at all.
-- No enforced validation/human-review gate: both the deterministic readiness critic and the AI critic compute a verdict, and (as of this wave) both verdicts now reliably reach `WorkflowState.critic_reviews` without overwriting each other — but nothing in `workflows/workflow.py` yet checks either one to pause or stop execution. That gate itself is still unbuilt (§6 decision #2).
-- No schema/deterministic validation of AI agent output before it flows downstream (e.g., generated testcases are trusted as-is).
-- `test_design/` package exists (matches `SPRINT_3_DESIGN.md`'s intended module names) but **every file in it is an empty stub** — Scenario Analyzer, Duplicate Detector, Weak Test Detector, etc. are all unimplemented. Deliberately left uncommitted this session (unrelated to the docs checkpoint).
-- Real automated test suite is just starting: `tests/test_critic_reviews.py` is the first real pytest test with actual assertions (Wave 1). Root-level `debug_*.py` scripts (now in `scripts/dev/`) still contain zero assertions.
+- No `skills/` directory — Skill-shaped logic (Readiness orchestration, Traceability, Coverage) currently lives under `services/`, and `critics/` is an entire undocumented layer that `ARCHITECTURE.md` still doesn't name explicitly (though its `governance/` counterpart now is, per ADR-004).
+- **Resume-after-pause is not implemented.** The Governance Gate can halt a run (Wave 2), but a paused `WorkflowState` is only returned to the caller within that single request — there is no persistence layer letting a human act on it later and have the workflow continue. This is the "allow execution to continue once resolved" half of `ARCHITECTURE.md`'s Human Review Architecture section, blocked on decision #9.
+- No schema/deterministic validation of AI agent output *beyond* the minimal non-empty-result check added in Wave 2 (e.g., generated testcases' internal shape — titles, steps, expected results — is still trusted as-is once the top-level dict is non-empty).
+- `test_design/` package exists (matches `SPRINT_3_DESIGN.md`'s intended module names) but **every file in it is an empty stub** — Scenario Analyzer, Duplicate Detector, Weak Test Detector, etc. are all unimplemented. Still uncommitted.
+- Real automated test suite: 38 tests passing across `tests/` (17 from Wave 1, 21 new from Wave 2's governance layer). Root-level `debug_*.py` scripts (in `scripts/dev/`) still contain zero assertions; `tests/test_imports.py` still triggers a harmless pytest collection warning (unrelated to Wave 2, not yet fixed).
 
-**Known correctness bug — RESOLVED this wave:** `WorkflowState.critic_review` was a single field written by both the deterministic Requirement Readiness critic and the AI `CriticAgent`, so the AI run silently overwrote the rule-based verdict before it reached the UI. Fixed by replacing it with `critic_reviews: dict`, keyed by critic name (`"requirement_readiness"`, `"testcase"`), covered by `tests/test_critic_reviews.py`. This resolves the *data-loss* half of pending decision #3 (§6); the *reconciliation/UX* half (how a reviewer should read two verdicts together) is still open. Full reasoning: `docs/ARCHITECTURE_DECISIONS.md` ADR-002.
+**Known correctness bug — RESOLVED (Wave 1):** `WorkflowState.critic_review` was a single field written by both the deterministic Requirement Readiness critic and the AI `CriticAgent`, so the AI run silently overwrote the rule-based verdict before it reached the UI. Fixed by replacing it with `critic_reviews: dict`, keyed by critic name. Full reasoning: `docs/ARCHITECTURE_DECISIONS.md` ADR-002.
+
+**Known correctness gap — RESOLVED (Wave 2):** the deterministic readiness critic's verdict was computed but never consulted — every requirement flowed through every AI stage regardless of its confidence or SME-review flag. Fixed via the Governance Gate (`governance/gate_engine.py` + `critics/requirement_readiness_critic.py::to_gate_decision`); a rejected or SME-flagged requirement now halts before any further AI cost is spent. Full reasoning: `docs/ARCHITECTURE_DECISIONS.md` ADR-004.
 
 **Known dead code:** `services/requirement_intelligence_service.py` remains as an open, undecided empty stub — deliberately not swept up with the rest, since its name implies unresolved intent rather than confirmed-dead scaffolding (needs Architect input on build vs. delete).
 
-**Repo hygiene note:** resolved this session — all of `docs/` is now committed (`3b84d25`). `README.md` and `requirements.txt` corruption was fixed in Wave 1 (`dbaabf2`).
+**Repo hygiene note:** `README.md`/`requirements.txt` corruption was fixed in Wave 1 (`dbaabf2`) — **and recurred twice during Wave 2's session** (unexplained text appended to `requirements.txt`, including one instance instructing concealment from the Product Owner). Cleaned both times; root cause still not identified. This is no longer a one-off — worth the Architect's/Giri's direct attention as a possible tooling/environment issue, independent of any wave's scope.
 
 ---
 
@@ -110,7 +116,7 @@ A full 24-item backlog was produced by an architecture audit prior to Wave 1. By
 
 - **Immediate Bugs (4) — ALL RESOLVED (Wave 1):** critic-review overwrite bug (`236259c`); corrupted `requirements.txt` (`dbaabf2`); corrupted `README.md` (`dbaabf2`); PII service's fake "count" field (`dbaabf2`).
 - **Refactoring (6) — ALL RESOLVED (Wave 1, `dbaabf2`):** collapse duplicated LLM-agent boilerplate; delete confirmed-dead files; consolidate OpenAI model config; clear root-level debug script clutter; normalize `services/__init__.py` exports; move a small UI business-decision out of `streamlit_app.py`.
-- **Architecture Decisions Required (9):** see §6. Decision #3 partially resolved this wave (data-loss half only).
+- **Architecture Decisions Required (9):** see §6. Decision #2 resolved (Wave 2, halt half); decision #3's data-loss half resolved (Wave 1); 7 remain open.
 - **Future Enhancements (3):** build a real pytest suite (started — `tests/test_critic_reviews.py`); improve PII detection robustness; resolve the intent of `requirement_intelligence_service.py`.
 - **Documentation Improvements (2):** fix stale README architecture diagram; document `critics/` in `ARCHITECTURE.md`. Neither done yet.
 
@@ -123,14 +129,15 @@ Full descriptions/effort/priority live in this session's conversation history an
 These require Architect (ChatGPT) sign-off before implementation, per the C² workflow:
 
 1. **Knowledge Pack mechanism** — format and loading strategy for externalizing hardcoded domain rules/prompts.
-2. **Human-review/validation gate design** — how workflows actually pause on low-confidence or failed-critic results.
-3. **Reconciling the two independent "readiness" verdicts** (quality-score status vs. readiness-critic approval). **Partially resolved (Wave 1):** the data-loss bug (one verdict silently overwriting the other) is fixed — see `ARCHITECTURE_DECISIONS.md` ADR-002. Still open: how a reviewer should read/reconcile two coexisting verdicts in the UI/UX.
-4. **Where AI-output schema validation lives** before downstream Skills consume it.
-5. **Fate of `test_design/`** — build it out as the real Skill layer, or delete the stubs and rethink Sprint 3's shape.
+2. **Human-review/validation gate design** — **RESOLVED for the halt half (Wave 2):** the Governance Gate (`governance/gate_engine.py`, `governance/workflow_step.py`) halts a workflow when a Skill/Critic's `GateDecision` says to. Still open: the resume half — see decision #9.
+3. **Reconciling the two independent "readiness" verdicts** (quality-score status vs. readiness-critic approval). **Data-loss half resolved (Wave 1)** — see ADR-002. **Working answer adopted for the UX half (Wave 2):** rather than merging verdicts, each producer's gate stands alone and the first to say "halt" wins — no reconciliation UI has been built, but the design no longer treats this as blocked on one. Revisit if two gates ever need to disagree about the *same* step.
+4. **Where AI-output schema validation lives** before downstream Skills consume it. **Partially addressed (Wave 2):** a minimal, domain-neutral "non-empty result" check now runs in `LLMAgent.execute()` via `governance/output_validator.py`. Still open: per-field/shape validation of what a valid testcase, UI analysis, etc. actually contains.
+5. **Fate of `test_design/`** — build it out as the real Skill layer, or delete the stubs and rethink Sprint 3's shape. Building it out is now lower-risk than before Wave 2, since it would inherit a working gate instead of repeating the ignored-verdict pattern.
 6. **Relocating Skill-shaped logic out of `services/`** (Readiness, Traceability, Coverage orchestration).
-7. **Formal directory-to-layer mapping** — introducing `skills/`/`knowledge/`, and deciding what `critics/` is.
-8. **How `workflow.py` should model non-agent steps** (Traceability/Coverage/Evaluation/Metrics currently bypass the agent-loop pattern).
-9. **Persistence strategy** — whether/what workflow runs should persist at all, now that SQLite integration is fully dead.
+7. **Formal directory-to-layer mapping** — introducing `skills/`/`knowledge/`, and deciding what `critics/` is. **Partially informed (Wave 2):** `governance/` was added as a new top-level package without waiting for this decision, justified as the concrete implementation of responsibilities `ARCHITECTURE.md`'s Workflow Layer already claimed ("approvals," "auditability") — see ADR-004 (C). This sets a precedent worth confirming: is "already-claimed-responsibility → new package is fine without this decision" the right test going forward?
+8. **How `workflow.py` should model non-agent steps** (Traceability/Coverage/Evaluation/Metrics currently bypass the agent-loop pattern). Wave 2's `WorkflowStep`/`ExecutionGuard`/`GateEngine` pattern only wraps agent-loop steps — the post-loop deterministic services remain unwrapped and un-gated, same as before.
+9. **Persistence strategy** — whether/what workflow runs should persist at all, now that SQLite integration is fully dead. **Now higher priority than before Wave 2:** resolving this unlocks true suspend/resume for a paused workflow, the remaining half of decision #2.
+10. **(New, Wave 2) `critic_reviews`'s free-string keys** — Wave 1 flagged converting these to an enum as a "revisit when a third critic arrives" item; Wave 2's gate now reads `state.critic_reviews.get("requirement_readiness", {})` by that same string, arguably past the trigger point. Not yet converted.
 
 ---
 

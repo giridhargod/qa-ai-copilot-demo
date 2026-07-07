@@ -67,6 +67,17 @@ Responsibilities include:
 
 Workflows coordinate Skills but never implement business logic.
 
+### Governance Runtime (`governance/`)
+
+The concrete implementation of this layer's "approvals" and "auditability" responsibilities, introduced in Wave 2. Deliberately domain-blind: it executes decisions, it never makes them.
+
+* `WorkflowStatus` / `GateDecision` — the shared vocabulary and contract Skills/Critics use to communicate a verdict to the runtime.
+* `ExecutionGuard` / `RetryPolicy` — safe agent execution: catches failures, retries only caller-supplied transient exception types, produces an honest execution record instead of assuming success.
+* `OutputValidator` — a minimal, domain-neutral AI-output contract (non-empty result) enforced before a Skill's output reaches workflow state.
+* `GateEngine` / `WorkflowStep` — mechanically enforces whatever `GateDecision` a step's agent returns via an optional `gate_check()` hook; a step with no opinion always proceeds.
+
+Business thresholds (e.g. what confidence counts as "approved") are never defined here — they live with the Critic/Skill that computes the verdict (see `critics/`), which then translates its own verdict into the neutral `GateDecision` contract. See `docs/ARCHITECTURE_DECISIONS.md` ADR-004 for the full reasoning.
+
 ---
 
 ## Skill Layer
@@ -257,6 +268,8 @@ Any Skill may request:
 * Risk assessment
 
 Human Review should pause workflows only when required and allow execution to continue once resolved.
+
+**Current implementation status (Wave 2):** the "pause" half is real — the Governance Runtime halts a workflow via `WorkflowStatus.PAUSED_FOR_REVIEW` / `NEEDS_SME` / `FAILED_VALIDATION` when a Skill's gate says to. The "allow execution to continue once resolved" half is not yet implemented — it requires a persistence strategy (still open, `MASTER_CONTEXT.md` §6 decision #9) so a paused run can be durably resumed rather than only halted-and-returned within a single request.
 
 ---
 

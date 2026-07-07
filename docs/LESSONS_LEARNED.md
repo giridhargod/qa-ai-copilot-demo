@@ -206,3 +206,117 @@ finds `WAVE_1.md`'s pre-rename commits).
 literally, would create technical debt" — the answer is: implement the
 intent, not the literal ask, but only after surfacing the trade-off and
 getting sign-off, not by unilaterally deciding you know better.
+
+---
+
+## Entry: Decisions vs. Execution — the Seam That Keeps a Runtime Reusable
+
+**Source:** `docs/ARCHITECTURE_DECISIONS.md` ADR-004; `docs/waves/WAVE_2.md`
+(Workflow Governance Layer).
+
+**Tags:** CCAF · Enterprise architecture · AI engineering · Python ·
+Interview value
+
+**What was learned:** the first draft of a governance/gate design put a
+configurable `CriticGate(verdict_key=..., thresholds=...)` class inside
+the reusable runtime layer, parameterized per-Skill. It looked reusable,
+but it still had the runtime reaching into named business fields
+(`confidence`, `needs_sme`) — just via configuration instead of
+hardcoding. The fix was not "make it more generic," it was moving the
+*interpretation* of those fields entirely out of the runtime: the Critic
+exposes a `to_gate_decision()` method that returns a small neutral
+contract (`GateDecision`), and the runtime's `GateEngine` only ever reads
+that contract. The tell that the first design was wrong wasn't a bug —
+it was that the runtime's source code still had to know a business
+concept's *name* to be configured.
+
+**Why this approach vs. alternatives:** see ADR-004 (B). A generic,
+parameterized class inside the runtime is a subtler version of the same
+mistake as hardcoding — both require the runtime to know what "approved"
+or "confidence" mean. A neutral contract (produced by whoever holds the
+domain knowledge, consumed by whoever enforces it) is the only version
+where the runtime is provably domain-blind by inspection alone.
+
+**Recurs in:** any "policy engine" / "rules runtime" design — the test
+"does my reusable layer's source contain the name of a business field"
+generalizes past this codebase. If yes, the boundary is in the wrong
+place, no matter how configurable it looks.
+
+**Interview value:** a concrete answer to "how do you design a reusable
+policy/gating layer without coupling it to the business logic it
+governs" — most candidates reach for configuration as the reuse
+mechanism; the stronger answer is a produced/consumed contract.
+
+---
+
+## Entry: Testing Multi-Agent Control Flow Without Live Model Calls
+
+**Source:** `docs/waves/WAVE_2.md` §7, §10 (`tests/test_workflow_gating.py`).
+
+**Tags:** QA engineering · AI engineering · Python · Practical engineering
+lesson · Interview value
+
+**What was learned:** proving "the workflow halts correctly when a
+Critic's verdict says it should" does not require a real LLM call, and
+arguably shouldn't use one — an AI response is non-deterministic, so a
+test built on a real call is really testing "did the API happen to
+return something like X today," not "does the control flow correctly
+handle X." Mocking the one deterministic seam (`ReadinessService.analyze`)
+let four end-to-end tests exercise the *real* `WorkflowOrchestrator`
+across every gate outcome (proceed, `NEEDS_SME`, `FAILED_VALIDATION`,
+`PAUSED_FOR_REVIEW`) in under a second, with zero network dependency.
+
+**Why this approach vs. alternatives:** mocking the LLM service itself
+(`OpenAIService.generate`) was considered but rejected for this
+particular test — the seam that actually determines gate behavior is the
+deterministic `ReadinessService`, not the LLM call three layers away from
+it. Mocking at the seam closest to the behavior under test kept the test
+narrow and resistant to unrelated refactors elsewhere in the agent chain.
+
+**Recurs in:** any agentic system where a deterministic rules layer feeds
+a decision into AI-driven orchestration — the rules layer is almost
+always the right place to inject test doubles, since it's what makes the
+system's *control flow* deterministic even when its *content generation*
+isn't.
+
+**Interview value:** "how do you test an AI pipeline without flaky,
+expensive, non-deterministic live calls" — identify the deterministic
+seam nearest to the behavior under test, not the seam nearest to the AI
+call.
+
+---
+
+## Entry: A Reusable Layer's Extension Points Should Predate Its First Extension
+
+**Source:** `docs/waves/WAVE_2.md` §7, §13 (`WorkflowStep.critical`,
+`BaseAgent.gate_check()`).
+
+**Tags:** Enterprise architecture · Practical engineering lesson ·
+Interview value
+
+**What was learned:** `WorkflowStep.critical` (graceful degradation for
+non-critical steps) and `BaseAgent.gate_check()` (an optional hook every
+agent gets, defaulting to "no opinion") were both built into Wave 2 even
+though no current Skill needs `critical=False` and only one Skill uses
+`gate_check()`. This is deliberate, not speculative: the cost of adding
+an unused optional flag/hook now is near zero, while retrofitting it
+after three Skills already assume the loop's current shape is a much
+larger change. The discipline is distinguishing "build the seam" (cheap,
+done now) from "build the feature that uses the seam" (deferred until a
+real consumer exists) — the latter is what "avoid speculative
+implementation" actually warns against, not the former.
+
+**Why this approach vs. alternatives:** the alternative — wait until a
+non-critical Skill or a second gated Skill actually exists, then
+refactor `workflow.py` again — was rejected because it repeats the exact
+anti-pattern this wave was approved to fix (the orchestrator needing an
+edit every time governance requirements grow).
+
+**Recurs in:** any framework/runtime code written ahead of its second
+use case — the generalizable test is "does this extension point cost
+anything to have and nothing to use," not "will something use it soon."
+
+**Interview value:** answers "how do you avoid both over-engineering and
+under-engineering a new internal framework" — the line isn't
+speculative vs. non-speculative, it's cheap-and-unused vs.
+expensive-and-unused.
