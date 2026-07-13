@@ -117,6 +117,21 @@ Captures workflow execution history including:
 
 for improved observability.
 
+## Secure Test Step Generator
+
+`secure_test_step_generator/` is a self-contained package that turns a Word/PDF
+document containing screenshots and tester notes into an enterprise test-step
+Excel file, without ever sending a raw screenshot or unredacted sensitive data
+to an LLM:
+
+```
+Document -> OCR -> Sanitization -> AI Step Generation -> Validation -> Excel Export
+```
+
+It does not import from the rest of this repository, so it can be copied out
+and run on its own. See `secure_test_step_generator/README.md` for setup,
+usage, and its documented security boundary and known limitations.
+
 ## Architecture
 
 ```
