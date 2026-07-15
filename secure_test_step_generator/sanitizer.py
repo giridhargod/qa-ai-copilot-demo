@@ -6,7 +6,12 @@ through sanitize_text() first. See models.py's docstring for how the
 type system enforces this at the pipeline level.
 """
 from .models import SanitizationReport
-from .patterns import ALL_PATTERNS, INJECTION_PATTERNS, known_internal_terms_pattern
+from .patterns import (
+    ALL_PATTERNS,
+    INJECTION_PATTERNS,
+    known_internal_terms_pattern,
+    mask_person_names,
+)
 
 
 def sanitize_text(text: str) -> tuple[str, SanitizationReport]:
@@ -29,6 +34,10 @@ def sanitize_text(text: str) -> tuple[str, SanitizationReport]:
         sanitized, n = pattern.regex.subn(pattern.placeholder, sanitized)
         if n:
             counts[pattern.category] = counts.get(pattern.category, 0) + n
+
+    sanitized, n = mask_person_names(sanitized)
+    if n:
+        counts["person_name"] = counts.get("person_name", 0) + n
 
     internal_terms_regex = known_internal_terms_pattern()
     if internal_terms_regex is not None:

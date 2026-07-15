@@ -130,6 +130,22 @@ rephrasing.
   video IDs, order numbers, timestamps), that's a product decision for
   the Architect/team, not something this tool should quietly loosen on its
   own.
+- **Person names are masked with a shape heuristic, not a real name
+  detector**: any two-or-three consecutive Capitalized Words are replaced
+  with `<NAME>` (`patterns.py`'s `mask_person_names`). Unlike SSN/email/
+  phone, a name has no fixed format to match. A stoplist of common English/
+  UI words (`_COMMON_NON_NAME_WORDS`) keeps ordinary nav chrome ("Sign In",
+  "Search Images", "Show more") from being masked, but it **cannot** tell a
+  real person's name apart from any other two-word proper noun that isn't
+  common UI vocabulary -- a video title, song title, or band name (e.g.
+  "Severus Snape", "Tom Odell") is masked exactly the same as a real name,
+  by design: the tool has no way to know which is which. A sentence-initial
+  word immediately followed by a stoplisted UI label can also still false-
+  positive (e.g. "Clicked Sign In"), since sentence-initial capitalization
+  looks identical to a name's first word. A proper NER model (e.g. spaCy)
+  would handle both cases more precisely but is a heavier dependency; see
+  this project's decision log for why V1 shipped the regex heuristic
+  instead.
 - **All evidence for a document is sent to the LLM in a single prompt**, with
   no chunking. A document with a very large number of screenshots could
   approach the model's context window; V1 has no truncation or batching

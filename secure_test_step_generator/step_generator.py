@@ -42,6 +42,13 @@ Rules:
 - Never invent information the evidence doesn't support. If the evidence is
   thin or ambiguous, say so explicitly in confidence_reason and warnings rather
   than guessing.
+- Use every distinguishing detail actually present in an item's evidence
+  (partial titles, timestamps, view counts, cursor position, on-screen text
+  fragments) to make its action/expected_result specific to that item, rather
+  than defaulting to generic wording shared with other items. If two or more
+  items are genuinely indistinguishable even after doing this, say so plainly
+  in that item's confidence_reason (e.g. "evidence identical to step N, cannot
+  distinguish") instead of silently repeating near-identical text.
 - confidence: your confidence in this step, from 0.0 to 1.0.
 - confidence_reason: 1-3 short bullet-style reasons for that confidence score
   (e.g. "OCR quality high", "cursor detected", "one ambiguous UI element").
@@ -73,6 +80,34 @@ def _format_evidence(evidence: list[SanitizedEvidenceItem]) -> str:
             f"{cursor_line}"
         )
     return "\n\n".join(blocks)
+
+
+def _coerce_text(value, warnings: list, field_label: str) -> str:
+    """Best-effort coercion of an LLM-returned field to the plain string
+    TestStep requires. The prompt asks for confidence_reason as "1-3
+    bullet-style reasons", which models sometimes return as a JSON list
+    rather than a single string -- join it instead of raising, per this
+    module's permissive-parsing contract (validator.py is the strict gate).
+
+    The warning text here ends up in the Excel a non-technical tester
+    reads, so it's phrased as "what to check", not as an internal
+    type-mismatch report.
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        warnings.append(
+            f"The {field_label} was auto-reformatted from a list into one line "
+            f"-- please double-check it reads correctly."
+        )
+        return "; ".join(str(v) for v in value)
+    if value is None:
+        return ""
+    warnings.append(
+        f"The {field_label} came back in an unexpected format and was "
+        f"auto-converted to text -- please double-check it reads correctly."
+    )
+    return str(value)
 
 
 def generate_test_steps(
@@ -128,10 +163,14 @@ def generate_test_steps(
         steps.append(
             TestStep(
                 step_no=index + 1,
-                action=raw.get("action", "") or "",
-                expected_result=raw.get("expected_result", "") or "",
+                action=_coerce_text(raw.get("action", ""), warnings, "Action"),
+                expected_result=_coerce_text(
+                    raw.get("expected_result", ""), warnings, "Expected Result"
+                ),
                 confidence=float(confidence),
-                confidence_reason=raw.get("confidence_reason", "") or "",
+                confidence_reason=_coerce_text(
+                    raw.get("confidence_reason", ""), warnings, "Confidence Reason"
+                ),
                 warnings=warnings,
             )
         )

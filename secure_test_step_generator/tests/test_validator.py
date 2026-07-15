@@ -3,9 +3,12 @@ from ..validator import validate_steps
 
 
 def test_well_formed_high_confidence_step_passes_through_clean():
+    # Deliberately avoids two-consecutive-Capitalized-Word phrases (e.g.
+    # "Click Submit") -- those now trip the person_name heuristic by
+    # design; see test_sanitizer.py's name-masking characterization test.
     step = TestStep(
         step_no=1,
-        action="Click Submit",
+        action="Click the submit button",
         expected_result="Confirmation page appears",
         confidence=0.9,
         confidence_reason="OCR quality high; cursor detected",
@@ -13,7 +16,7 @@ def test_well_formed_high_confidence_step_passes_through_clean():
     )
     result = validate_steps([step])[0]
     assert result.warnings == []
-    assert result.action == "Click Submit"
+    assert result.action == "Click the submit button"
 
 
 def test_flags_empty_action_or_expected_result():

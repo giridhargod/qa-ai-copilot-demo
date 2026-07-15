@@ -118,6 +118,42 @@ def test_unicode_text_is_preserved_and_still_sanitized():
     assert report.total == 2
 
 
+def test_masks_two_word_capitalized_name():
+    sanitized, report = sanitize_text("Tester note: approved by Severus Snape")
+    assert "Severus Snape" not in sanitized
+    assert "<NAME>" in sanitized
+    assert report.counts_by_category["person_name"] == 1
+
+
+def test_common_ui_labels_mid_sentence_are_not_falsely_masked_as_names():
+    # patterns._COMMON_NON_NAME_WORDS keeps ordinary nav/button chrome
+    # from being destroyed by the name heuristic below -- this is what
+    # separates "high recall" from "shreds every screenshot's on-screen
+    # text", since UI text is itself written in Title Case throughout.
+    for text in [
+        "Sign In to your account",
+        "Search Images Videos Maps News",
+        "Show more results",
+        "The user tapped Sign In next",
+    ]:
+        sanitized, report = sanitize_text(text)
+        assert "<NAME>" not in sanitized, text
+        assert "person_name" not in report.counts_by_category, text
+
+
+def test_name_heuristic_can_still_false_positive_on_sentence_initial_capitalization():
+    # Known residual limitation, not a bug report: a sentence-initial word
+    # is always capitalized regardless of whether it's a name, so a
+    # non-stoplisted verb like "Clicked" immediately followed by a
+    # stoplisted UI label ("Sign In") still reads as one 3-word
+    # Capitalized-Word match and gets masked. Narrowing this further
+    # would need real grammatical parsing, not a word-shape heuristic --
+    # see README "Known limitations".
+    sanitized, report = sanitize_text("Clicked Sign In on the login screen")
+    assert "<NAME>" in sanitized
+    assert report.counts_by_category["person_name"] == 1
+
+
 def test_known_internal_terms_are_redacted_when_configured():
     original_terms = list(patterns.KNOWN_INTERNAL_TERMS)
     try:

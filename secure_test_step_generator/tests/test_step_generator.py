@@ -136,6 +136,39 @@ def test_response_steps_out_of_array_order_are_matched_by_step_no_not_position()
     assert steps[1].action == "Click confirm on the second screen"
 
 
+def test_confidence_reason_returned_as_list_is_joined_into_a_string_with_warning():
+    # The prompt asks for "1-3 bullet-style reasons", which real models
+    # sometimes return as a JSON list rather than a single string. TestStep
+    # is typed as str, and downstream validator.py calls .strip()/regex
+    # substitution on confidence_reason -- a list there crashes the pipeline.
+    provider = FakeLLMProvider(
+        {
+            "steps": [
+                {
+                    "action": "A",
+                    "expected_result": "B",
+                    "confidence": 0.8,
+                    "confidence_reason": ["OCR quality high", "cursor detected"],
+                }
+            ]
+        }
+    )
+    steps = generate_test_steps([_evidence()], provider)
+
+    assert steps[0].confidence_reason == "OCR quality high; cursor detected"
+    assert any("please double-check it reads correctly" in w for w in steps[0].warnings)
+
+
+def test_action_returned_as_non_string_is_coerced_with_warning():
+    provider = FakeLLMProvider(
+        {"steps": [{"action": 42, "expected_result": "B", "confidence": 0.8}]}
+    )
+    steps = generate_test_steps([_evidence()], provider)
+
+    assert steps[0].action == "42"
+    assert any("unexpected format" in w for w in steps[0].warnings)
+
+
 def test_prompt_includes_placeholders_and_cursor_hint_not_raw_values():
     provider = FakeLLMProvider({"steps": [{}]})
     evidence = _evidence(

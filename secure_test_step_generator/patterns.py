@@ -75,7 +75,6 @@ ALL_PATTERNS = [
             re.IGNORECASE,
         ),
     ),
-
     # --- Government / QA domain ---
     SensitivePattern(
         "case_id", "<CASE_ID>",
@@ -171,6 +170,63 @@ INJECTION_PATTERNS = [
         ),
     ),
 ]
+
+
+# Two-or-three consecutive Capitalized Words as a stand-in for a person's
+# name -- there's no fixed format to match the way there is for an
+# SSN/email/phone, so this is a shape heuristic, not a real name detector.
+# Handled outside ALL_PATTERNS (its own function, not a plain regex.subn)
+# because raw UI/OCR text is *itself* written in Title Case throughout
+# (nav labels, headers, buttons), which is structurally indistinguishable
+# from a name by capitalization shape alone. Without a stoplist, this
+# pattern doesn't just add noise the way a bare-digit-ID false positive
+# does -- it shreds most of a screenshot's actual on-screen text. The
+# stoplist below is a closed class of common English/UI words (not
+# open-vocabulary the way person names or KNOWN_INTERNAL_TERMS are), so
+# excluding them doesn't weaken protection against a real name -- a real
+# person's name won't be in this list.
+#
+# This still can't tell a real person's name apart from any other
+# two-word proper noun that isn't common UI chrome (a video title, a song
+# title, a band name) -- those are equally masked, on purpose. See README
+# "Known limitations".
+_PERSON_NAME_REGEX = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b")
+
+_COMMON_NON_NAME_WORDS = {
+    "the", "and", "for", "with", "from", "this", "that", "your", "you",
+    "sign", "in", "up", "out", "on", "off", "search", "show", "more",
+    "try", "start", "watch", "watching", "history", "home", "shorts",
+    "subscriptions", "videos", "video", "music", "movies", "premium",
+    "shopping", "explore", "help", "build", "feed", "love", "overview",
+    "services", "online", "users", "enjoy", "written", "upload", "share",
+    "family", "quality", "images", "maps", "news", "all", "tv", "click",
+    "page", "button", "screen", "tab", "menu", "options", "settings",
+    "profile", "account", "notifications", "results", "playlist",
+    "channel", "subscribe", "comment", "like", "dislike", "views", "ago",
+    "years", "year", "months", "month", "days", "day", "hours", "hour",
+    "minutes", "minute", "reply", "comments", "close", "open", "next",
+    "previous", "back", "continue", "cancel", "confirm", "submit", "save",
+    "edit", "delete", "add", "new", "view", "views",
+}
+
+
+def mask_person_names(text: str) -> "tuple[str, int]":
+    """Replace name-shaped Capitalized-Word sequences with <NAME>, unless
+    every word in the match is common English/UI vocabulary (see the
+    stoplist above) -- e.g. "Sign In" and "Show More" are left alone,
+    but "Severus Snape" or "John Smith" are masked.
+    """
+    count = 0
+
+    def _replace(match: "re.Match") -> str:
+        nonlocal count
+        words = match.group(0).split()
+        if all(w.lower() in _COMMON_NON_NAME_WORDS for w in words):
+            return match.group(0)
+        count += 1
+        return "<NAME>"
+
+    return _PERSON_NAME_REGEX.sub(_replace, text), count
 
 
 # Open-vocabulary internal names (projects, internal app names, env
