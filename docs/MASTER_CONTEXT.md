@@ -1,7 +1,7 @@
 # QA AI Copilot — Master Context
 
-**Version 0.3 — Updated with Giri's explicit approval, 2026-07-08.**
-Last generated: 2026-07-08, from Wave 2 (Workflow Governance Layer), implemented and documented, pending commit.
+**Version 0.4 — Updated with Giri's explicit approval, 2026-07-20.**
+Last generated: 2026-07-08, from Wave 2 (Workflow Governance Layer), implemented and documented, pending commit. Amended 2026-07-20 to record the Architect's resolution of §6 decision #1 (Knowledge Pack authoring format) — see §0 and §6.
 
 This is the primary onboarding document for any new Claude session working on QA AI Copilot. Read this before reading any other doc in `docs/`. It exists because the other docs (`ARCHITECTURE.md`, `SKILLS_GUIDE.md`, `WORKFLOW_GUIDE.md`, etc.) describe the **target** design in detail but do not say how much of it is actually built, nor what's in flight right now. This document draws that line.
 
@@ -15,13 +15,15 @@ For a short, scannable "start here" pointer before reading the rest of this file
 - **Current wave:** **Wave 2 — Workflow Governance Layer (Human-Review / Validation Gate).** Status: **implemented, tested (38/38 passing), documented; pending commit.** Full record: `docs/waves/WAVE_2.md`; design decisions: `docs/ARCHITECTURE_DECISIONS.md` ADR-004.
 - **Previous wave:** Wave 1 — Repository Cleanup, Agent Framework Improvements & Critic Data Contract Repair. Complete and committed (`dbaabf2`, `236259c`, `3b84d25`). Full record: `docs/waves/WAVE_1.md`.
 - **Next wave:** **Not yet defined.** Per the C² workflow, Wave 3 scope is the Architect's/Giri's call. Candidates surfacing from Wave 2: converting `critic_reviews`'s free-string keys to an enum (see §6 decision #3 note below), resolving persistence (decision #9) to unlock resume-after-pause, or building out `test_design/` now that it would inherit a working gate instead of repeating the ignored-verdict pattern.
-- **Open decisions:** 8 of the original 9 pending architecture decisions remain (§6) — decision #2 (human-review/validation gate design) is now **resolved** for the halt half; its resume half is folded into decision #9 (persistence).
+- **Open decisions:** 8 of the original 9 pending architecture decisions remain (§6) — decision #2 (human-review/validation gate design) is **resolved** for the halt half (resume half folded into decision #9); decision #1 (Knowledge Pack mechanism) is **resolved for the authoring format** (2026-07-20) — its runtime-loader half remains open.
+- **New activity (2026-07-20, outside wave numbering):** a Knowledge Pack Contributor (Giri's brother, ~3-week window) is onboarding via fork+PR against a now-Architect-approved YAML schema. Docs: `docs/FIRST_DAY.md`, `docs/KNOWLEDGE_PACKS.md` (v0.2), `docs/KNOWLEDGE_PACK_BRIEF.md`. This is content-only work — no code changes, gated from touching `requirement_engine/`/`critics/` until Phase 2 (the loader) is designed.
 - **Implementation queue (unordered, not yet prioritized):**
   1. Migrate the 24-item backlog into `docs/PRODUCT_BACKLOG.md` (currently empty).
   2. Resolve `services/requirement_intelligence_service.py`'s intent (build vs. delete).
   3. Decide the fate of `test_design/` (§6 decision #5) — Sprint 3 stubs, unimplemented.
   4. Convert `critic_reviews`'s free-string keys to an enum (Wave 1 debt, now read programmatically by Wave 2's gate — see `docs/waves/WAVE_2.md` §14).
-  5. Any of the remaining 8 pending architecture decisions in §6, at the Architect's discretion.
+  5. Build the JSON Schema validator for Knowledge Packs (`docs/KNOWLEDGE_PACKS.md` §3.4) — needed before any Phase 2 loader work starts.
+  6. Any of the remaining 8 pending architecture decisions in §6, at the Architect's discretion.
 
 ---
 
@@ -128,7 +130,7 @@ Full descriptions/effort/priority live in this session's conversation history an
 
 These require Architect (ChatGPT) sign-off before implementation, per the C² workflow:
 
-1. **Knowledge Pack mechanism** — format and loading strategy for externalizing hardcoded domain rules/prompts.
+1. **Knowledge Pack mechanism** — **RESOLVED for the authoring format (Architect decision, 2026-07-20).** YAML, organized `domain → capability → pack` with a per-domain `manifest.yaml`; each pack file has five sections (`metadata`, `knowledge`, `rules`, `examples`, `references`); rule matching is typed (`matching: {type, values}`, only `type: keywords` defined so far); `metadata` carries governance fields (`owner`, `review_status`, `lifecycle`, timestamps) alongside identity/versioning. Full schema: `docs/KNOWLEDGE_PACKS.md` §3. **Still open:** the runtime loading strategy (Phase 2 — replacing `CATEGORY_KEYWORDS`/`MANDATORY_WORDS`/etc. with a loader that reads `knowledge/`) and the schema-validation file itself (§3.4), neither built yet.
 2. **Human-review/validation gate design** — **RESOLVED for the halt half (Wave 2):** the Governance Gate (`governance/gate_engine.py`, `governance/workflow_step.py`) halts a workflow when a Skill/Critic's `GateDecision` says to. Still open: the resume half — see decision #9.
 3. **Reconciling the two independent "readiness" verdicts** (quality-score status vs. readiness-critic approval). **Data-loss half resolved (Wave 1)** — see ADR-002. **Working answer adopted for the UX half (Wave 2):** rather than merging verdicts, each producer's gate stands alone and the first to say "halt" wins — no reconciliation UI has been built, but the design no longer treats this as blocked on one. Revisit if two gates ever need to disagree about the *same* step.
 4. **Where AI-output schema validation lives** before downstream Skills consume it. **Partially addressed (Wave 2):** a minimal, domain-neutral "non-empty result" check now runs in `LLMAgent.execute()` via `governance/output_validator.py`. Still open: per-field/shape validation of what a valid testcase, UI analysis, etc. actually contains.

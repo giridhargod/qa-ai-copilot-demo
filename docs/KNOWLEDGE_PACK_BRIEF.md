@@ -16,53 +16,113 @@ A **Knowledge Pack** is a small, versioned file holding **deterministic domain k
 
 **Why it matters:** the project's stated goal is to support any industry (banking, healthcare, telecom, insurance...) by *adding a Knowledge Pack file*, not by changing code. Right now, all domain rules are hardcoded directly in Python — Knowledge Packs are how that gets replaced with something maintainable. Your contribution is pure content/research work: it does not touch the application code at all.
 
-**Important — this is a draft/proposed format**, not yet approved by the project's architecture reviewer (ChatGPT, in this project's "C² workflow" — see repo's `docs/MASTER_CONTEXT.md` if you ever do get repo access). It's good enough to draft real content against now; the schema may be revised later without losing your content.
+**This format is approved** by the project's architecture reviewer (ChatGPT, in this project's "C² workflow") as of 2026-07-20. Follow the section/field names below exactly — don't rename, reorder, or invent sibling fields — a schema validator is planned and will assume this exact shape.
 
 ## 3. The format
+
+### 3.1 Directory layout — domain → capability → pack
 
 ```
 knowledge/
   <domain>/
-    <pack_name>.yaml
+    manifest.yaml
+    <capability>/
+      <pack_name>.yaml
 ```
 
-Example path: `knowledge/banking/kyc_verification_rules.yaml`
+Example:
+
+```
+knowledge/
+  banking/
+    manifest.yaml
+    kyc/
+      verification_rules.yaml
+```
+
+`pack_id` convention: `<domain>.<capability>.<pack_name>`, e.g. `banking.kyc.verification_rules`.
+
+### 3.2 Pack file — five sections: metadata, knowledge, rules, examples, references
 
 ```yaml
-pack_id: banking.kyc_verification_rules
-domain: banking
-version: 0.1.0
-description: >
-  Deterministic rules for validating KYC (Know Your Customer)
-  requirement completeness before a requirement is marked ready.
-source: "RBI KYC Master Direction, 2016 (summarized, non-legal)"
-maintainer: <your-github-username>
+metadata:
+  pack_id: banking.kyc.verification_rules
+  domain: banking
+  capability: kyc
+  version: 0.1.0
+  description: >
+    Deterministic rules for validating KYC (Know Your Customer)
+    requirement completeness before a requirement is marked ready.
+  owner: <your-github-username>
+  review_status: draft        # draft | reviewed | approved | deprecated
+  lifecycle: active            # active | deprecated | retired
+  created_at: "2026-07-20"
+  updated_at: "2026-07-20"
+
+knowledge:
+  - id: kyc-fact-001
+    statement: >
+      PAN (Permanent Account Number) is a 10-character alphanumeric
+      identifier issued by India's Income Tax Department.
+  - id: kyc-fact-002
+    statement: "Address proof documents are valid only within a defined recency window."
 
 rules:
   - id: kyc-001
     description: "PAN number format must be validated before account activation"
-    keywords: ["PAN", "permanent account number"]
+    based_on: [kyc-fact-001]
+    matching:
+      type: keywords
+      values: ["PAN", "permanent account number"]
     severity: mandatory
 
   - id: kyc-002
     description: "Address proof must be dated within 90 days"
-    keywords: ["address proof", "utility bill"]
+    based_on: [kyc-fact-002]
+    matching:
+      type: keywords
+      values: ["address proof", "utility bill"]
     severity: mandatory
+
+examples:
+  - input: "User must upload PAN card and a utility bill dated within the last 60 days."
+    expected_rule_matches: ["kyc-001", "kyc-002"]
+
+references:
+  - type: regulation
+    citation: "RBI KYC Master Direction, 2016 (summarized, non-legal)"
+  - type: note
+    citation: "needs SME verification where marked"
 ```
 
 Field rules:
-- `pack_id` — dotted, unique, stable once merged.
-- `version` — bump on any content change (patch = wording, minor = rule added, major = rule removed/renamed).
-- `source` — always cite where the rule came from. If unsure, write `source: "needs SME verification"` — never invent a regulation.
-- `severity` — `mandatory` / `recommended` / `informational`.
+- **`metadata`** — identity + governance. `version` bumps on content change (patch = wording, minor = rule added, major = rule removed/renamed). `review_status` tracks human-review state; `lifecycle` tracks whether the pack is still meant to be live — these are independent of each other.
+- **`knowledge`** — descriptive domain facts only. No matching, no severity.
+- **`rules`** — the actionable checks. `based_on` links back to `knowledge` entry IDs. `matching` is typed (`type: keywords` today, with a `values` list) so other matching styles can be added later without breaking existing packs.
+- **`examples`** — sample input text + which rule IDs should fire on it. Optional but encouraged.
+- **`references`** — plural, each with a `type` (`regulation` / `standard` / `internal` / `note`) and `citation`. If unsure of a source, use `type: note, citation: "needs SME verification"` — never invent a regulation.
 - No PII, no real customer/company data — this is a public git history.
-- One domain/rule-set per file. Keep packs small and focused, not one giant file per industry.
+- One capability/rule-set per file, not one giant file per industry.
+
+### 3.3 `manifest.yaml` — one per domain
+
+```yaml
+domain: banking
+description: "Banking industry Knowledge Packs"
+packs:
+  - pack_id: banking.kyc.verification_rules
+    path: kyc/verification_rules.yaml
+    enabled: true
+    depends_on: []
+```
+
+`depends_on` is reserved for future cross-pack dependencies — leave `[]` for now.
 
 ## 4. How to submit — no local clone, no git commands needed
 
 1. Go to **https://github.com/giridhargod/qa-ai-copilot-main** and click **Fork** (top right) — creates your own copy under your GitHub account.
 2. On your fork, click **Add file → Create new file**.
-3. Type the path as the filename, e.g. `knowledge/banking/kyc_verification_rules.yaml` — GitHub creates the folders automatically.
+3. Type the full path as the filename, e.g. `knowledge/banking/kyc/verification_rules.yaml` — GitHub creates the folders automatically. Also create/update `knowledge/banking/manifest.yaml` to list your new pack.
 4. Paste your YAML content (draft it with Claude Code locally first if you like — just paste the finished text here, nothing needs to run).
 5. Scroll down, choose **"Create a new branch and start a pull request"** (not the default "commit directly to main" option), name the branch e.g. `knowledge/banking-kyc-rules`, and click **Propose new file**.
 6. GitHub takes you to a PR screen comparing your fork's new branch against the upstream repo's `main`. Fill in a short title/description and click **Create pull request**.
@@ -73,8 +133,8 @@ That's the entire workflow — everything happens in the browser, on GitHub's se
 
 You can absolutely use Claude Code to research and draft the YAML content — just run it in any empty local folder (it doesn't need this repo at all). Good prompts:
 
-- "Help me draft a Knowledge Pack YAML file for [domain] following this schema: [paste §3 above]. The rules should cover [topic]."
-- "Review this Knowledge Pack YAML for internal consistency and check I've cited a source for every rule."
+- "Help me draft a Knowledge Pack YAML file for [domain/capability] following this schema: [paste §3.2 above]. The rules should cover [topic]."
+- "Review this Knowledge Pack YAML for internal consistency, check every rule has a `based_on` knowledge entry, and check I've cited a reference for every rule."
 
 Then copy the final YAML text into GitHub's web editor as in §4. Claude Code is your drafting assistant here, not something that needs to touch the actual repository.
 

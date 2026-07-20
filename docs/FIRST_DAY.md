@@ -41,7 +41,7 @@ git checkout -b knowledge/<short-topic-name>
 ## Branch and PR workflow
 
 1. One branch per Knowledge Pack, named `knowledge/<topic>` (e.g. `knowledge/banking-kyc-rules`).
-2. Add your pack under `knowledge/<domain>/<pack_name>.yaml` following the format in `docs/KNOWLEDGE_PACKS.md` §3.
+2. Add your pack under `knowledge/<domain>/<capability>/<pack_name>.yaml`, plus an entry in `knowledge/<domain>/manifest.yaml`, following the Architect-approved format in `docs/KNOWLEDGE_PACKS.md` §3.
 3. Commit, push to **your fork**, then open a PR against the upstream repo's `main`.
 4. Do not push directly to `main` and do not merge your own PR — Giri and/or ChatGPT review every Knowledge Pack PR before merge (same review bar as any other change to this project).
 5. If Giri is unavailable for a stretch, PRs can queue — leave them open rather than merging without review.
@@ -49,7 +49,7 @@ git checkout -b knowledge/<short-topic-name>
 ## What to read first (in this order, skip everything else)
 
 1. `README.md` — project overview, 2 minutes.
-2. `docs/KNOWLEDGE_PACKS.md` — what a Knowledge Pack is, why it matters, the proposed file format.
+2. `docs/KNOWLEDGE_PACKS.md` — what a Knowledge Pack is, why it matters, the Architect-approved file format.
 3. `docs/CLAUDE.md`, the "Knowledge Packs" and "Privacy & Security" sections — house philosophy on what belongs in a pack and what doesn't.
 
 You do **not** need `docs/MASTER_CONTEXT.md`, `docs/ARCHITECTURE.md`, or `docs/waves/*` — those document the implementation history and internal engineering decisions; they're not required to draft domain content.

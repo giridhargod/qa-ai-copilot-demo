@@ -1,6 +1,6 @@
 # Knowledge Packs
 
-**Status: v0.1 draft.** The "why" and "what" sections reflect settled project vision (`CLAUDE.md`, `ARCHITECTURE.md`, `MASTER_CONTEXT.md` §1–2). The **file format and loading mechanism proposed in §3–4 are NOT yet approved** — `MASTER_CONTEXT.md` §6 lists "Knowledge Pack mechanism" as an open architecture decision requiring ChatGPT (Architect) + Giri sign-off. This draft exists so content work can start now without waiting; treat the schema as provisional until the Architect reviews it.
+**Status: v0.2 — direction and schema approved by the Architect (ChatGPT), 2026-07-20.** `MASTER_CONTEXT.md` §6 decision #1 ("Knowledge Pack mechanism") is resolved for the authoring format below. Still open: the concrete runtime loader (Phase 2, §4) and the schema-validation file itself (§3.4) — both explicitly planned, not yet built. Contributors should follow §3 exactly as written; it's stable enough to produce real content against.
 
 ---
 
@@ -27,54 +27,126 @@ Two things make this more than a nice-to-have:
 
 Knowledge Pack content is also the part of this project that scales well as **parallel, non-code contribution** — drafting a domain rule set doesn't require touching `agents/`, `governance/`, or any running code, so it's low-risk to work on independently while implementation work (Claude/Giri's side) continues separately.
 
-## 3. Proposed format (draft — pending Architect approval)
+## 3. Format (Architect-approved, 2026-07-20)
+
+### 3.1 Directory layout — domain → capability → pack
 
 ```
 knowledge/
   <domain>/
-    <pack_name>.yaml
+    manifest.yaml
+    <capability>/
+      <pack_name>.yaml
 ```
 
-Example: `knowledge/banking/kyc_verification_rules.yaml`
+Example:
 
-Each pack is a single YAML file:
+```
+knowledge/
+  banking/
+    manifest.yaml
+    kyc/
+      verification_rules.yaml
+    aml/
+      screening_rules.yaml
+```
+
+`pack_id` convention: `<domain>.<capability>.<pack_name>`, e.g. `banking.kyc.verification_rules`.
+
+### 3.2 Pack file — five separated sections
+
+Each pack file has exactly five top-level sections — `metadata`, `knowledge`, `rules`, `examples`, `references` — kept distinct so the schema can grow without breaking existing packs:
 
 ```yaml
-pack_id: banking.kyc_verification_rules
-domain: banking
-version: 0.1.0
-description: >
-  Deterministic rules for validating KYC (Know Your Customer)
-  requirement completeness before a requirement is marked ready.
-source: "RBI KYC Master Direction, 2016 (summarized, non-legal)"
-maintainer: <github-username>
+metadata:
+  pack_id: banking.kyc.verification_rules
+  domain: banking
+  capability: kyc
+  version: 0.1.0
+  description: >
+    Deterministic rules for validating KYC (Know Your Customer)
+    requirement completeness before a requirement is marked ready.
+  owner: <github-username>
+  review_status: draft        # draft | reviewed | approved | deprecated
+  lifecycle: active            # active | deprecated | retired
+  created_at: "2026-07-20"
+  updated_at: "2026-07-20"
+
+knowledge:
+  - id: kyc-fact-001
+    statement: >
+      PAN (Permanent Account Number) is a 10-character alphanumeric
+      identifier issued by India's Income Tax Department.
+  - id: kyc-fact-002
+    statement: "Address proof documents are valid only within a defined recency window."
 
 rules:
   - id: kyc-001
     description: "PAN number format must be validated before account activation"
-    keywords: ["PAN", "permanent account number"]
+    based_on: [kyc-fact-001]
+    matching:
+      type: keywords
+      values: ["PAN", "permanent account number"]
     severity: mandatory
 
   - id: kyc-002
     description: "Address proof must be dated within 90 days"
-    keywords: ["address proof", "utility bill"]
+    based_on: [kyc-fact-002]
+    matching:
+      type: keywords
+      values: ["address proof", "utility bill"]
     severity: mandatory
+
+examples:
+  - input: "User must upload PAN card and a utility bill dated within the last 60 days."
+    expected_rule_matches: ["kyc-001", "kyc-002"]
+
+references:
+  - type: regulation
+    citation: "RBI KYC Master Direction, 2016 (summarized, non-legal)"
+  - type: note
+    citation: "needs SME verification where marked"
 ```
 
-Field notes:
-- `pack_id` — dotted, unique, stable (used as a lookup key once wired into code — don't rename after merge without a version bump).
-- `version` — bump on any rule content change (semver: patch = wording fix, minor = rule added, major = rule removed/renamed).
-- `source` — always cite where a rule came from. Never fabricate a regulation; if unsure, write `source: "needs SME verification"` and flag it in the PR.
-- `severity` — `mandatory` / `recommended` / `informational` (open to Architect revision).
-- No PII, no real customer data, no company-confidential rules — these packs are versioned in a public-facing git history.
+Section notes:
+- **`metadata`** — identity + governance. `version` tracks content revisions (semver: patch = wording, minor = rule added, major = rule removed/renamed). `review_status` and `lifecycle` are separate axes: `review_status` tracks where the pack sits in human review; `lifecycle` tracks whether it's still meant to be live, independent of review state.
+- **`knowledge`** — descriptive domain facts/definitions. No matching, no severity — just what's true in the domain.
+- **`rules`** — the actionable, matchable checks. `based_on` links a rule back to the `knowledge` entries it derives from, for traceability. `matching` is a typed section, not a bare `keywords` list — today only `type: keywords` (with a `values` list) is defined, but the shape leaves room for `type: regex`, `type: field_presence`, etc. later without a breaking migration.
+- **`examples`** — optional but encouraged: sample input text plus which rule IDs should fire on it. Doubles as a regression fixture once Phase 2 wires a loader.
+- **`references`** — plural (replaces the old singular `source` field), each entry typed (`regulation` / `standard` / `internal` / `note`) with a `citation`. Never fabricate a regulation — use `type: note, citation: "needs SME verification"` when unsure.
+- No PII, no real customer data, no company-confidential content — packs are versioned in a public-facing git history.
 
-## 4. How Knowledge Packs get integrated (two phases)
+### 3.3 `manifest.yaml` — one per domain
 
-**Phase 1 — now (content only).** Knowledge Pack PRs are reviewed for accuracy, sourcing, and format consistency. They land in `knowledge/` as approved, versioned, ready-to-wire assets. Nothing in the running code reads them yet.
+Lists every pack in a domain, for discovery, dependency tracking, and future enable/disable without deleting content:
 
-**Phase 2 — after the Architect resolves `MASTER_CONTEXT.md` §6 decision #1 (loading strategy).** A future wave replaces the hardcoded constants named in §3 (`CATEGORY_KEYWORDS`, `MANDATORY_WORDS`, etc.) with a loader that reads `knowledge/`. Content drafted in Phase 1 doesn't get thrown away — it's exactly what Phase 2 wires in.
+```yaml
+domain: banking
+description: "Banking industry Knowledge Packs"
+packs:
+  - pack_id: banking.kyc.verification_rules
+    path: kyc/verification_rules.yaml
+    enabled: true
+    depends_on: []
+  - pack_id: banking.aml.screening_rules
+    path: aml/screening_rules.yaml
+    enabled: true
+    depends_on: []
+```
 
-Do not write code in `requirement_engine/`, `critics/`, or elsewhere to consume `knowledge/` yet — that step is explicitly gated on the open architecture decision.
+`depends_on` is reserved for a future case (a pack relying on another domain's shared definitions) — leave it `[]` until that need is concrete.
+
+### 3.4 Schema validation — planned, not yet built
+
+A JSON Schema (or equivalent) for both the pack file and `manifest.yaml` is planned to run before Phase 2's runtime loader reads anything. It doesn't exist yet. Until it does: follow §3.2/§3.3's section and field names **exactly** — don't rename, reorder, or invent sibling fields — so validation, when added, doesn't require reformatting every existing pack.
+
+## 4. How Knowledge Packs get integrated (two phases, both Architect-approved)
+
+**Phase 1 — Knowledge Engineering (now, content only).** Knowledge Pack PRs are reviewed for accuracy, sourcing, and structural conformance to §3. They land in `knowledge/` as approved, versioned, ready-to-wire assets. Nothing in the running code reads them yet. This phase proceeds independently of Phase 2's timeline.
+
+**Phase 2 — runtime integration (not yet started).** A future wave replaces the hardcoded constants named in §2 (`CATEGORY_KEYWORDS`, `MANDATORY_WORDS`, etc.) with a loader that reads `knowledge/`, validated against the schema in §3.4 once it exists. Content drafted in Phase 1 doesn't get thrown away — it's exactly what Phase 2 wires in.
+
+Do not write code in `requirement_engine/`, `critics/`, or elsewhere to consume `knowledge/` yet — the loader design is still unbuilt.
 
 ## 5. Review flow
 
@@ -82,4 +154,4 @@ Same as any other contribution (see `docs/FIRST_DAY.md`): fork → branch → PR
 
 ---
 
-*Once the Architect reviews this draft, replace this status line and file the resulting diff the way any other `MASTER_CONTEXT.md`-adjacent decision gets recorded — see `docs/MASTER_CONTEXT.md`'s "How to Update This Document" section.*
+*This schema (v0.2) was approved by the Architect on 2026-07-20. The corresponding `MASTER_CONTEXT.md` update is proposed, not yet applied — see the session's proposed diff, pending Giri's sign-off per `MASTER_CONTEXT.md`'s "How to Update This Document" section.*
